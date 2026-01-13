@@ -158,8 +158,10 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         if (request.status !== 'completed') {
             return {
                 status: request.status,
-                cursor: '',
-                results: []
+                data: [],
+                meta: {
+                    next_cursor: null
+                }
             };
         }
 
@@ -210,8 +212,10 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         const response: PaginatedFetchResult = {
             status: 'completed',
-            cursor: nextCursor || '',
-            results: hydratedResults
+            data: hydratedResults,
+            meta: {
+                next_cursor: nextCursor
+            }
         };
 
         // 4. Save to Cache (TTL: 1 Hour)

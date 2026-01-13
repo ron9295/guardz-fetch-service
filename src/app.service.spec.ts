@@ -177,8 +177,10 @@ describe('AppService', () => {
 
             expect(result).toEqual({
                 status: 'processing',
-                cursor: '',
-                results: []
+                data: [],
+                meta: {
+                    next_cursor: null
+                }
             });
             expect(mockRedis.get).not.toHaveBeenCalled();
             expect(mockResultRepo.findAndCount).not.toHaveBeenCalled();
@@ -186,7 +188,7 @@ describe('AppService', () => {
 
         it('should return cached results if request is completed and cache exists', async () => {
             mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed' });
-            const cachedResponse = { status: 'completed', cursor: '10', results: [] };
+            const cachedResponse = { status: 'completed', data: [], meta: { next_cursor: '10' } };
             mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
 
             const result = await service.getResults('req-1', 0, 10);
