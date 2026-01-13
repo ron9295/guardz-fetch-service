@@ -167,13 +167,13 @@ describe('AppService', () => {
     describe('getResults', () => {
         it('should throw error if request not found', async () => {
             mockRequestRepo.findOne.mockResolvedValue(null);
-            await expect(service.getResults('invalid-id', '0', 10)).rejects.toThrow('Request not found');
+            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow('Request not found');
         });
 
         it('should return status only if request is processing', async () => {
             mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing' });
 
-            const result = await service.getResults('req-1', '0', 10);
+            const result = await service.getResults('req-1', 0, 10);
 
             expect(result).toEqual({
                 status: 'processing',
@@ -189,7 +189,7 @@ describe('AppService', () => {
             const cachedResponse = { status: 'completed', cursor: '10', results: [] };
             mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
 
-            const result = await service.getResults('req-1', '0', 10);
+            const result = await service.getResults('req-1', 0, 10);
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
             expect(result).toEqual(cachedResponse);
@@ -205,7 +205,7 @@ describe('AppService', () => {
             ];
             mockResultRepo.findAndCount.mockResolvedValue([dbResults, 100]);
 
-            const result = await service.getResults('req-1', '0', 10);
+            const result = await service.getResults('req-1', 0, 10);
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
             expect(mockResultRepo.findAndCount).toHaveBeenCalled();
