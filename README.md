@@ -31,18 +31,34 @@ This project was created as a home assignment for Guardz.
 
 ## ▶️ Running the Application
 
-To run the project locally as required for the code review:
+### 🐳 Using Docker Compose (Recommended)
+
+The easiest way to run the entire backend with all dependencies (Postgres, Redis, RabbitMQ, LocalStack) is using Docker Compose.
 
 ```bash
-# development mode
-npm run start
-
-# watch mode (recommended for development)
-npm run start:dev
-
-# production mode
-npm run start:prod
+docker-compose up --build
 ```
+
+This will start the following services:
+
+*   **API Service:** [http://localhost:3000](http://localhost:3000)
+*   **Redis Commander (UI):** [http://localhost:8081](http://localhost:8081)
+*   **RabbitMQ Management:** [http://localhost:15672](http://localhost:15672) (User: `user`, Pass: `password`)
+*   **LocalStack (S3):** [http://localhost:4566](http://localhost:4566)
+*   **PostgreSQL:** Port `5432`
+
+### 💻 Local Development
+
+If you prefer to run the Node.js application locally but kept infrastructure in Docker:
+
+1.  Start dependencies:
+    ```bash
+    docker-compose up redis postgres rabbitmq localstack
+    ```
+2.  Run the app:
+    ```bash
+    npm run start:dev
+    ```
 
 ## ⚙️ Environment Variables
 
