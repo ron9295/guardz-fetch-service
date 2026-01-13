@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nest
 import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, MoreThanOrEqual } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestEntity } from './entities/request.entity';
 import { ResultEntity } from './entities/result.entity';
@@ -177,13 +177,14 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             nextCursor = cachedMetadata.meta.next_cursor;
         } else {
             // Fetch from DB (for both completed and in-progress requests)
-            const skip = cursor;
-
+            // Use WHERE clause with originalIndex for efficient pagination (O(1) instead of O(n))
             const [dbResults, dbTotal] = await this.resultRepository.findAndCount({
-                where: { requestId },
+                where: {
+                    requestId,
+                    ...(cursor > 0 && { originalIndex: MoreThanOrEqual(cursor) })
+                },
                 take: limit,
-                skip: skip,
-                order: { originalIndex: 'ASC' } // Ensure consistent ordering based on input
+                order: { originalIndex: 'ASC' }
             });
 
             results = dbResults.map(entity => ({
@@ -197,7 +198,8 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             }));
 
             total = dbTotal;
-            nextCursor = (skip + limit < total) ? (skip + limit).toString() : null;
+            // Next cursor is the originalIndex after the last result
+            nextCursor = dbResults.length === limit ? (cursor + limit).toString() : null;
         }
 
         // 4. Hydrate content from S3 (always fetch fresh, never cache HTML)
