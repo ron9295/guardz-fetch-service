@@ -220,4 +220,20 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         return response;
     }
+    async getRequestStatus(requestId: string): Promise<{ status: string; total: number; processed: number; percentage: number }> {
+        const request = await this.requestRepository.findOne({ where: { id: requestId } });
+
+        if (!request) {
+            throw new Error('Request not found');
+        }
+
+        const percentage = request.total > 0 ? (request.processed / request.total) * 100 : 0;
+
+        return {
+            status: request.status,
+            total: request.total,
+            processed: request.processed,
+            percentage: Math.round(percentage * 100) / 100 // Round to 2 decimal places
+        };
+    }
 }

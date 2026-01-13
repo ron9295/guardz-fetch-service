@@ -24,4 +24,10 @@ export class AppController {
         this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);
         return this.appService.getResults(id, cursor, limit);
     }
+    
+    @Get('fetch/:id/status')
+    getRequestStatus(@Param('id') id: string) {
+        this.logger.log(`Fetching status for requestId: ${id}`);
+        return this.appService.getRequestStatus(id);
+    }
 }
