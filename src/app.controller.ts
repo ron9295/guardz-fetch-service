@@ -1,39 +1,7 @@
-import { Body, Controller, Get, Param, Post, Logger, Query, DefaultValuePipe, ParseIntPipe, PipeTransform, Injectable, ArgumentMetadata, BadRequestException, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
-import { ApiQuery } from '@nestjs/swagger';
-
-@Injectable()
-export class IntRangePipe implements PipeTransform {
-    constructor(
-        private readonly min: number,
-        private readonly max: number,
-        private readonly options: { strictMin?: boolean; strictMax?: boolean } = {}
-    ) { }
-
-    transform(value: any, metadata: ArgumentMetadata) {
-        if (value === undefined || value === null || value === '') {
-            return undefined;
-        }
-        let val = parseInt(value, 10);
-        if (isNaN(val)) {
-            throw new BadRequestException(`Validation failed. '${metadata.data}' must be a number.`);
-        }
-        if (val < this.min) {
-            if (this.options.strictMin) {
-                throw new BadRequestException(`Validation failed. '${metadata.data}' must be at least ${this.min}.`);
-            }
-            val = this.min;
-        }
-        if (val > this.max) {
-            if (this.options.strictMax) {
-                throw new BadRequestException(`Validation failed. '${metadata.data}' must be at most ${this.max}.`);
-            }
-            val = this.max;
-        }
-        return val;
-    }
-}
+import { PaginationDto } from './pagination.dto';
 
 @Controller('scans')
 export class AppController {
@@ -50,16 +18,13 @@ export class AppController {
     }
 
     @Get(':id/results')
-    @ApiQuery({ name: 'cursor', required: false, type: Number })
-    @ApiQuery({ name: 'limit', required: false, type: Number })
     getResults(
         @Param('id', ParseUUIDPipe) id: string,
-        @Query('cursor', new IntRangePipe(0, Number.MAX_SAFE_INTEGER, { strictMin: true })) cursor?: number,
-        @Query('limit', new IntRangePipe(1, 100)) limit?: number
+        @Query() query: PaginationDto
     ) {
         // AppService handles defaults for cursor (0) and limit (100)
-        this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);
-        return this.appService.getResults(id, cursor, limit);
+        this.logger.log(`Fetching results for requestId: ${id} cursor: ${query.cursor} limit: ${query.limit}`);
+        return this.appService.getResults(id, query.cursor, query.limit);
     }
 
     @Get(':id/status')
