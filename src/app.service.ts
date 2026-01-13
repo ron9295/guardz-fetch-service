@@ -194,27 +194,38 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
                 title: entity.title,
                 s3Key: entity.s3Key,
                 error: entity.error,
-                fetchedAt: entity.fetchedAt
+                fetchedAt: entity.fetchedAt,
+                originalIndex: entity.originalIndex // Keep for nextCursor calculation
             }));
 
-            total = dbTotal;
-            // Next cursor is the originalIndex after the last result
-            nextCursor = dbResults.length === limit ? (cursor + limit).toString() : null;
+            // Use request.total (not dbTotal which is remaining count after WHERE clause)
+            total = request.total;
+
+            // Calculate nextCursor from actual data (defensive coding)
+            if (dbResults.length === limit && dbResults.length > 0) {
+                const lastResult = dbResults[dbResults.length - 1];
+                nextCursor = (lastResult.originalIndex + 1).toString();
+            } else {
+                nextCursor = null;
+            }
         }
 
         // 4. Hydrate content from S3 (always fetch fresh, never cache HTML)
         const hydratedResults = await Promise.all(results.map(async (result) => {
-            if (result.s3Key) {
+            // Remove internal originalIndex field before returning
+            const { originalIndex, ...resultWithoutIndex } = result;
+
+            if (resultWithoutIndex.s3Key) {
                 try {
-                    const stream = await this.storageService.getStream(result.s3Key);
+                    const stream = await this.storageService.getStream(resultWithoutIndex.s3Key);
                     const content = await this.storageService.streamToString(stream);
-                    return { ...result, content, s3Key: undefined };
+                    return { ...resultWithoutIndex, content, s3Key: undefined };
                 } catch (error) {
-                    this.logger.error(`[${requestId}] Failed to fetch S3 content for key ${result.s3Key}`, error);
-                    return { ...result, error: 'Failed to retrieve content' };
+                    this.logger.error(`[${requestId}] Failed to fetch S3 content for key ${resultWithoutIndex.s3Key}`, error);
+                    return { ...resultWithoutIndex, error: 'Failed to retrieve content' };
                 }
             }
-            return result;
+            return resultWithoutIndex;
         }));
 
         const response: PaginatedFetchResult = {
@@ -240,6 +251,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         return response;
     }
+
     async getRequestStatus(requestId: string): Promise<{ status: string; total: number; processed: number; percentage: number }> {
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
 
