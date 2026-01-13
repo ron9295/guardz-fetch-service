@@ -57,9 +57,10 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
             // B. Prepare entities for DB
             // We let the DB generate the IDs
-            const entitiesToInsert = urlChunk.map(url => ({
+            const entitiesToInsert = urlChunk.map((url, index) => ({
                 requestId: requestId,
                 url: url,
+                originalIndex: i + index,
                 status: 'pending'
             }));
 
@@ -154,7 +155,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             where: { requestId },
             take: count,
             skip: skip,
-            order: { id: 'ASC' } // Ensure consistent ordering
+            order: { originalIndex: 'ASC' } // Ensure consistent ordering based on input
         });
 
         // Hydrate content from S3
