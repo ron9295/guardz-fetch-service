@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nest
 import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestEntity } from './entities/request.entity';
 import { ResultEntity } from './entities/result.entity';
@@ -126,8 +126,24 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         this.logger.debug(`[${requestId}] Batch updated: ${results.length} items`);
 
-        // 4. Update counter
-        await this.requestRepository.increment({ id: requestId }, 'processed', results.length);
+        // 4. Update counter safely
+        // We count the actual number of completed items in the DB.
+        // This is idempotent: if the job runs twice, the count will just be calculated again correctly.
+        const processedCount = await this.resultRepository.count({
+            where: {
+                requestId,
+                status: Not('pending')
+            }
+        });
+
+        await this.requestRepository.update({ id: requestId }, { processed: processedCount });
+
+        // 5. Check completion
+        const request = await this.requestRepository.findOne({ where: { id: requestId } });
+        if (request && request.processed >= request.total) {
+            await this.requestRepository.update({ id: requestId }, { status: 'completed' });
+            this.logger.log(`[${requestId}] Request completed. processed: ${request.processed}/${request.total}`);
+        }
     }
 
     async getResults(requestId: string, cursor: string = '0', count: number = 100): Promise<PaginatedFetchResult> {
