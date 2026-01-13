@@ -101,4 +101,16 @@ describe('IntRangePipe', () => {
         const strictPipe = new IntRangePipe(10, 100, { strictMax: true });
         expect(() => strictPipe.transform('150', metadata)).toThrow(BadRequestException);
     });
+
+    it('should return undefined if value is undefined', () => {
+        expect(pipe.transform(undefined, metadata)).toBeUndefined();
+    });
+
+    it('should return undefined if value is null', () => {
+        expect(pipe.transform(null, metadata)).toBeUndefined();
+    });
+
+    it('should return undefined if value is empty string', () => {
+        expect(pipe.transform('', metadata)).toBeUndefined();
+    });
 });

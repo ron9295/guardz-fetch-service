@@ -11,6 +11,9 @@ export class IntRangePipe implements PipeTransform {
     ) { }
 
     transform(value: any, metadata: ArgumentMetadata) {
+        if (value === undefined || value === null || value === '') {
+            return undefined;
+        }
         let val = parseInt(value, 10);
         if (isNaN(val)) {
             throw new BadRequestException(`Validation failed. '${metadata.data}' must be a number.`);
@@ -48,9 +51,10 @@ export class AppController {
     @Get(':id/results')
     getResults(
         @Param('id', ParseUUIDPipe) id: string,
-        @Query('cursor', new DefaultValuePipe(0), new IntRangePipe(0, Number.MAX_SAFE_INTEGER, { strictMin: true })) cursor: number,
-        @Query('limit', new DefaultValuePipe(100), new IntRangePipe(1, 100)) limit: number
+        @Query('cursor', new IntRangePipe(0, Number.MAX_SAFE_INTEGER, { strictMin: true })) cursor?: number,
+        @Query('limit', new IntRangePipe(1, 100)) limit?: number
     ) {
+        // AppService handles defaults for cursor (0) and limit (100)
         this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);
         return this.appService.getResults(id, cursor, limit);
     }
