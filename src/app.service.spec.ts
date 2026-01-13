@@ -158,4 +158,42 @@ describe('AppService', () => {
             ]));
         });
     });
+    describe('getRequestStatus', () => {
+        it('should return status and percentage completion', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({
+                id: 'req-1',
+                status: 'processing',
+                total: 100,
+                processed: 50
+            });
+
+            const result = await service.getRequestStatus('req-1');
+
+            expect(result).toEqual({
+                status: 'processing',
+                total: 100,
+                processed: 50,
+                percentage: 50
+            });
+        });
+
+        it('should throw error if request not found', async () => {
+            mockRequestRepo.findOne.mockResolvedValue(null);
+
+            await expect(service.getRequestStatus('invalid-id')).rejects.toThrow('Request not found');
+        });
+
+        it('should handle zero total to avoid division by zero', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({
+                id: 'req-2',
+                status: 'pending',
+                total: 0,
+                processed: 0
+            });
+
+            const result = await service.getRequestStatus('req-2');
+
+            expect(result.percentage).toBe(0);
+        });
+    });
 });
