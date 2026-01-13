@@ -18,13 +18,13 @@ export class AppController {
     @Get('fetch/:id')
     getResults(
         @Param('id') id: string,
-        @Query('cursor') cursor?: string,
-        @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number
+        @Query('cursor', new DefaultValuePipe(0), ParseIntPipe) cursor: number,
+        @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number
     ) {
         this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);
         return this.appService.getResults(id, cursor, limit);
     }
-    
+
     @Get('fetch/:id/status')
     getRequestStatus(@Param('id') id: string) {
         this.logger.log(`Fetching status for requestId: ${id}`);

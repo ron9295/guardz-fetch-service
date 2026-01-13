@@ -147,7 +147,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    async getResults(requestId: string, cursor: string = '0', count: number = 100): Promise<PaginatedFetchResult> {
+    async getResults(requestId: string, cursor: number = 0, count: number = 100): Promise<PaginatedFetchResult> {
         // 1. Check Request Status
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
         if (!request) {
@@ -172,8 +172,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
 
         // 3. Fetch from DB
-        // Interpret cursor as offset (skip)
-        const skip = parseInt(cursor, 10) || 0;
+        const skip = cursor;
 
         const [results, total] = await this.resultRepository.findAndCount({
             where: { requestId },
