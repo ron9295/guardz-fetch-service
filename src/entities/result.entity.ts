@@ -10,6 +10,9 @@ export class ResultEntity {
     @Column()
     url: string;
 
+    @Column({ type: 'int', default: 0 })
+    originalIndex: number;
+
     @Column()
     status: string;
 
