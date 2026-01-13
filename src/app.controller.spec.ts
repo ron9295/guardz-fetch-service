@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppController, IntRangePipe } from './app.controller';
+import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { BadRequestException, ArgumentMetadata } from '@nestjs/common';
 
 jest.mock('uuid', () => ({
     v4: () => 'test-request-id',
@@ -50,7 +49,8 @@ describe('AppController', () => {
     describe('getResults', () => {
         it('should call appService.getResults with correct params', async () => {
             mockAppService.getResults.mockResolvedValue({});
-            await controller.getResults('req-1', 10, 50);
+            const query = { cursor: 10, limit: 50 };
+            await controller.getResults('req-1', query);
             expect(mockAppService.getResults).toHaveBeenCalledWith('req-1', 10, 50);
         });
     });
@@ -64,53 +64,3 @@ describe('AppController', () => {
     });
 });
 
-describe('IntRangePipe', () => {
-    let pipe: IntRangePipe;
-    const metadata: ArgumentMetadata = { type: 'query', data: 'limit' };
-
-    beforeEach(() => {
-        pipe = new IntRangePipe(10, 100);
-    });
-
-    it('should return value if it is within range', () => {
-        expect(pipe.transform('50', metadata)).toBe(50);
-    });
-
-    it('should clamp value to max if it exceeds max (default)', () => {
-        expect(pipe.transform('150', metadata)).toBe(100);
-    });
-
-    it('should clamp value to min if it is below min (default)', () => {
-        expect(pipe.transform('5', metadata)).toBe(10);
-    });
-
-    it('should throw BadRequestException if value is not a number', () => {
-        expect(() => pipe.transform('invalid', metadata)).toThrow(BadRequestException);
-    });
-
-    it('should handle numeric input directly', () => {
-        expect(pipe.transform(50, metadata)).toBe(50);
-    });
-
-    it('should throw exception if strictMin is true and value is below min', () => {
-        const strictPipe = new IntRangePipe(10, 100, { strictMin: true });
-        expect(() => strictPipe.transform('5', metadata)).toThrow(BadRequestException);
-    });
-
-    it('should throw exception if strictMax is true and value is above max', () => {
-        const strictPipe = new IntRangePipe(10, 100, { strictMax: true });
-        expect(() => strictPipe.transform('150', metadata)).toThrow(BadRequestException);
-    });
-
-    it('should return undefined if value is undefined', () => {
-        expect(pipe.transform(undefined, metadata)).toBeUndefined();
-    });
-
-    it('should return undefined if value is null', () => {
-        expect(pipe.transform(null, metadata)).toBeUndefined();
-    });
-
-    it('should return undefined if value is empty string', () => {
-        expect(pipe.transform('', metadata)).toBeUndefined();
-    });
-});

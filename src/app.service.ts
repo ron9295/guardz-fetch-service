@@ -154,47 +154,54 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             throw new Error('Request not found');
         }
 
-        // If not completed, return status immediately (no partial results)
-        if (request.status !== 'completed') {
-            return {
-                status: request.status,
-                data: [],
-                meta: {
-                    next_cursor: null
-                }
-            };
+        // 2. Try Cache (Only for completed requests) - Cache contains metadata only, not HTML
+        let cachedMetadata: { status: string; data: any[]; meta: { next_cursor: string | null } } | null = null;
+        if (request.status === 'completed') {
+            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+            const cached = await this.redis.get(cacheKey);
+            if (cached) {
+                this.logger.debug(`Cache hit for results ${cacheKey}`);
+                cachedMetadata = JSON.parse(cached);
+            }
         }
 
-        // 2. Try Cache (Only for completed requests)
-        const cacheKey = `results:${requestId}:${cursor}:${limit}`;
-        const cached = await this.redis.get(cacheKey);
-        if (cached) {
-            this.logger.debug(`Cache hit for results ${cacheKey}`);
-            return JSON.parse(cached);
-        }
+        // 3. Fetch from DB if not cached
+        let results: any[];
+        let total: number;
+        let nextCursor: string | null;
 
-        // 3. Fetch from DB
-        const skip = cursor;
+        if (cachedMetadata) {
+            // Use cached metadata
+            results = cachedMetadata.data;
+            total = cachedMetadata.data.length; // Approximate, but cursor is cached
+            nextCursor = cachedMetadata.meta.next_cursor;
+        } else {
+            // Fetch from DB (for both completed and in-progress requests)
+            const skip = cursor;
 
-        const [results, total] = await this.resultRepository.findAndCount({
-            where: { requestId },
-            take: limit,
-            skip: skip,
-            order: { originalIndex: 'ASC' } // Ensure consistent ordering based on input
-        });
+            const [dbResults, dbTotal] = await this.resultRepository.findAndCount({
+                where: { requestId },
+                take: limit,
+                skip: skip,
+                order: { originalIndex: 'ASC' } // Ensure consistent ordering based on input
+            });
 
-        // Hydrate content from S3
-        const hydratedResults = await Promise.all(results.map(async (entity) => {
-            const result: FetchResult = {
+            results = dbResults.map(entity => ({
                 url: entity.url,
-                status: entity.status as any,
+                status: entity.status,
                 statusCode: entity.statusCode,
                 title: entity.title,
                 s3Key: entity.s3Key,
                 error: entity.error,
                 fetchedAt: entity.fetchedAt
-            };
+            }));
 
+            total = dbTotal;
+            nextCursor = (skip + limit < total) ? (skip + limit).toString() : null;
+        }
+
+        // 4. Hydrate content from S3 (always fetch fresh, never cache HTML)
+        const hydratedResults = await Promise.all(results.map(async (result) => {
             if (result.s3Key) {
                 try {
                     const stream = await this.storageService.getStream(result.s3Key);
@@ -208,18 +215,26 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             return result;
         }));
 
-        const nextCursor = (skip + limit < total) ? (skip + limit).toString() : null;
-
         const response: PaginatedFetchResult = {
-            status: 'completed',
+            status: request.status,
             data: hydratedResults,
             meta: {
                 next_cursor: nextCursor
             }
         };
 
-        // 4. Save to Cache (TTL: 1 Hour)
-        await this.redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+        // 5. Save metadata to Cache (Only for completed requests, without HTML content, TTL: 1 Hour)
+        if (request.status === 'completed' && !cachedMetadata) {
+            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+            const metadataToCache = {
+                status: request.status,
+                data: results, // Only metadata, no HTML content
+                meta: {
+                    next_cursor: nextCursor
+                }
+            };
+            await this.redis.set(cacheKey, JSON.stringify(metadataToCache), 'EX', 3600);
+        }
 
         return response;
     }
