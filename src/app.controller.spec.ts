@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppController, ParseIntWithMaxPipe } from './app.controller';
+import { AppController, IntRangePipe } from './app.controller';
 import { AppService } from './app.service';
 import { BadRequestException, ArgumentMetadata } from '@nestjs/common';
 
@@ -64,20 +64,24 @@ describe('AppController', () => {
     });
 });
 
-describe('ParseIntWithMaxPipe', () => {
-    let pipe: ParseIntWithMaxPipe;
+describe('IntRangePipe', () => {
+    let pipe: IntRangePipe;
     const metadata: ArgumentMetadata = { type: 'query', data: 'limit' };
 
     beforeEach(() => {
-        pipe = new ParseIntWithMaxPipe(100);
+        pipe = new IntRangePipe(10, 100);
     });
 
-    it('should return value if it is a number and below max', () => {
+    it('should return value if it is within range', () => {
         expect(pipe.transform('50', metadata)).toBe(50);
     });
 
     it('should clamp value to max if it exceeds max', () => {
         expect(pipe.transform('150', metadata)).toBe(100);
+    });
+
+    it('should clamp value to min if it is below min', () => {
+        expect(pipe.transform('5', metadata)).toBe(10);
     });
 
     it('should throw BadRequestException if value is not a number', () => {
