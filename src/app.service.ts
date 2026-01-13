@@ -148,6 +148,30 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
     }
 
     async getResults(requestId: string, cursor: string = '0', count: number = 100): Promise<PaginatedFetchResult> {
+        // 1. Check Request Status
+        const request = await this.requestRepository.findOne({ where: { id: requestId } });
+        if (!request) {
+            throw new Error('Request not found');
+        }
+
+        // If not completed, return status immediately (no partial results)
+        if (request.status !== 'completed') {
+            return {
+                status: request.status,
+                cursor: '',
+                results: []
+            };
+        }
+
+        // 2. Try Cache (Only for completed requests)
+        const cacheKey = `results:${requestId}:${cursor}:${count}`;
+        const cached = await this.redis.get(cacheKey);
+        if (cached) {
+            this.logger.debug(`Cache hit for results ${cacheKey}`);
+            return JSON.parse(cached);
+        }
+
+        // 3. Fetch from DB
         // Interpret cursor as offset (skip)
         const skip = parseInt(cursor, 10) || 0;
 
@@ -185,9 +209,15 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         const nextCursor = (skip + count < total) ? (skip + count).toString() : null;
 
-        return {
+        const response: PaginatedFetchResult = {
+            status: 'completed',
             cursor: nextCursor || '',
             results: hydratedResults
         };
+
+        // 4. Save to Cache (TTL: 1 Hour)
+        await this.redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+
+        return response;
     }
 }

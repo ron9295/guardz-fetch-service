@@ -17,9 +17,14 @@ describe('AppService', () => {
     let mockAmqpConnection: any;
     let mockRequestRepo: any;
     let mockResultRepo: any;
+    let mockRedis: any;
     let mockS3Send: jest.Mock;
 
     beforeEach(async () => {
+        mockRedis = {
+            get: jest.fn(),
+            set: jest.fn(),
+        };
         mockAmqpConnection = {
             publish: jest.fn(),
         };
@@ -43,6 +48,7 @@ describe('AppService', () => {
             })),
             findOne: jest.fn(),
             count: jest.fn().mockResolvedValue(1),
+            findAndCount: jest.fn(),
         };
         mockS3Send = jest.fn();
 
@@ -51,7 +57,7 @@ describe('AppService', () => {
                 AppService,
                 {
                     provide: 'REDIS_CLIENT',
-                    useValue: {},
+                    useValue: mockRedis,
                 },
                 {
                     provide: AmqpConnection,
@@ -156,6 +162,60 @@ describe('AppService', () => {
                     status: 'success'
                 })
             ]));
+        });
+    });
+    describe('getResults', () => {
+        it('should throw error if request not found', async () => {
+            mockRequestRepo.findOne.mockResolvedValue(null);
+            await expect(service.getResults('invalid-id', '0', 10)).rejects.toThrow('Request not found');
+        });
+
+        it('should return status only if request is processing', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing' });
+
+            const result = await service.getResults('req-1', '0', 10);
+
+            expect(result).toEqual({
+                status: 'processing',
+                cursor: '',
+                results: []
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+            expect(mockResultRepo.findAndCount).not.toHaveBeenCalled();
+        });
+
+        it('should return cached results if request is completed and cache exists', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed' });
+            const cachedResponse = { status: 'completed', cursor: '10', results: [] };
+            mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
+
+            const result = await service.getResults('req-1', '0', 10);
+
+            expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
+            expect(result).toEqual(cachedResponse);
+            expect(mockResultRepo.findAndCount).not.toHaveBeenCalled();
+        });
+
+        it('should fetch from DB, hydrate from S3, and cache if request is completed and cache misses', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed' });
+            mockRedis.get.mockResolvedValue(null);
+
+            const dbResults = [
+                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date() }
+            ];
+            mockResultRepo.findAndCount.mockResolvedValue([dbResults, 100]);
+
+            const result = await service.getResults('req-1', '0', 10);
+
+            expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
+            expect(mockResultRepo.findAndCount).toHaveBeenCalled();
+            expect(mockRedis.set).toHaveBeenCalledWith(
+                'results:req-1:0:10',
+                expect.any(String), // JSON string
+                'EX',
+                3600
+            );
+            expect(result.status).toBe('completed');
         });
     });
 });
