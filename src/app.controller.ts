@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Logger } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Logger, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
 
@@ -16,9 +16,13 @@ export class AppController {
     }
 
     @Get('fetch/:id')
-    getResults(@Param('id') id: string) {
-        this.logger.log(`Fetching results for requestId: ${id}`);
-        return this.appService.getResults(id);
+    getResults(
+        @Param('id') id: string,
+        @Query('cursor') cursor?: string,
+        @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number
+    ) {
+        this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);
+        return this.appService.getResults(id, cursor, limit);
     }
     
     @Get('fetch/:id/status')

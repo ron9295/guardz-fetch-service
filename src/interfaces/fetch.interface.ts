@@ -17,6 +17,7 @@ export interface FetchInput {
 }
 
 export interface PaginatedFetchResult {
+    status: string;
     cursor: string;
     results: FetchResult[];
 }
