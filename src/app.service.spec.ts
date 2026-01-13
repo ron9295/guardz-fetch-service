@@ -170,20 +170,22 @@ describe('AppService', () => {
             await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow('Request not found');
         });
 
-        it('should return status only if request is processing', async () => {
+        it('should return partial results if request is processing', async () => {
             mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing' });
+
+            const dbResults = [
+                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date() },
+                { url: 'u2', status: 'pending', statusCode: null, title: null, s3Key: null, fetchedAt: null }
+            ];
+            mockResultRepo.findAndCount.mockResolvedValue([dbResults, 2]);
 
             const result = await service.getResults('req-1', 0, 10);
 
-            expect(result).toEqual({
-                status: 'processing',
-                data: [],
-                meta: {
-                    next_cursor: null
-                }
-            });
-            expect(mockRedis.get).not.toHaveBeenCalled();
-            expect(mockResultRepo.findAndCount).not.toHaveBeenCalled();
+            expect(result.status).toBe('processing');
+            expect(result.data).toHaveLength(2);
+            expect(mockRedis.get).not.toHaveBeenCalled(); // No cache check for in-progress
+            expect(mockRedis.set).not.toHaveBeenCalled(); // No caching for in-progress
+            expect(mockResultRepo.findAndCount).toHaveBeenCalled();
         });
 
         it('should return cached results if request is completed and cache exists', async () => {

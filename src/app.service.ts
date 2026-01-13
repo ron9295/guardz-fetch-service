@@ -154,26 +154,17 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             throw new Error('Request not found');
         }
 
-        // If not completed, return status immediately (no partial results)
-        if (request.status !== 'completed') {
-            return {
-                status: request.status,
-                data: [],
-                meta: {
-                    next_cursor: null
-                }
-            };
-        }
-
         // 2. Try Cache (Only for completed requests)
-        const cacheKey = `results:${requestId}:${cursor}:${limit}`;
-        const cached = await this.redis.get(cacheKey);
-        if (cached) {
-            this.logger.debug(`Cache hit for results ${cacheKey}`);
-            return JSON.parse(cached);
+        if (request.status === 'completed') {
+            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+            const cached = await this.redis.get(cacheKey);
+            if (cached) {
+                this.logger.debug(`Cache hit for results ${cacheKey}`);
+                return JSON.parse(cached);
+            }
         }
 
-        // 3. Fetch from DB
+        // 3. Fetch from DB (for both completed and in-progress requests)
         const skip = cursor;
 
         const [results, total] = await this.resultRepository.findAndCount({
@@ -211,15 +202,18 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         const nextCursor = (skip + limit < total) ? (skip + limit).toString() : null;
 
         const response: PaginatedFetchResult = {
-            status: 'completed',
+            status: request.status,
             data: hydratedResults,
             meta: {
                 next_cursor: nextCursor
             }
         };
 
-        // 4. Save to Cache (TTL: 1 Hour)
-        await this.redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+        // 4. Save to Cache (Only for completed requests, TTL: 1 Hour)
+        if (request.status === 'completed') {
+            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+            await this.redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+        }
 
         return response;
     }
