@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Logger, Query, DefaultValuePipe, ParseIntPipe, PipeTransform, Injectable, ArgumentMetadata, BadRequestException, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
+import { ApiQuery } from '@nestjs/swagger';
 
 @Injectable()
 export class IntRangePipe implements PipeTransform {
@@ -49,6 +50,8 @@ export class AppController {
     }
 
     @Get(':id/results')
+    @ApiQuery({ name: 'cursor', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
     getResults(
         @Param('id', ParseUUIDPipe) id: string,
         @Query('cursor', new IntRangePipe(0, Number.MAX_SAFE_INTEGER, { strictMin: true })) cursor?: number,
