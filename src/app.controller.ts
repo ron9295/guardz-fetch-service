@@ -4,7 +4,11 @@ import { FetchUrlDto } from './fetch-url.dto';
 
 @Injectable()
 export class IntRangePipe implements PipeTransform {
-    constructor(private readonly min: number, private readonly max: number) { }
+    constructor(
+        private readonly min: number,
+        private readonly max: number,
+        private readonly options: { strictMin?: boolean; strictMax?: boolean } = {}
+    ) { }
 
     transform(value: any, metadata: ArgumentMetadata) {
         let val = parseInt(value, 10);
@@ -12,9 +16,15 @@ export class IntRangePipe implements PipeTransform {
             throw new BadRequestException(`Validation failed. '${metadata.data}' must be a number.`);
         }
         if (val < this.min) {
+            if (this.options.strictMin) {
+                throw new BadRequestException(`Validation failed. '${metadata.data}' must be at least ${this.min}.`);
+            }
             val = this.min;
         }
         if (val > this.max) {
+            if (this.options.strictMax) {
+                throw new BadRequestException(`Validation failed. '${metadata.data}' must be at most ${this.max}.`);
+            }
             val = this.max;
         }
         return val;
@@ -38,7 +48,7 @@ export class AppController {
     @Get(':id/results')
     getResults(
         @Param('id', ParseUUIDPipe) id: string,
-        @Query('cursor', new DefaultValuePipe(0), new IntRangePipe(0, Number.MAX_SAFE_INTEGER)) cursor: number,
+        @Query('cursor', new DefaultValuePipe(0), new IntRangePipe(0, Number.MAX_SAFE_INTEGER, { strictMin: true })) cursor: number,
         @Query('limit', new DefaultValuePipe(100), new IntRangePipe(1, 100)) limit: number
     ) {
         this.logger.log(`Fetching results for requestId: ${id} cursor: ${cursor} limit: ${limit}`);

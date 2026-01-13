@@ -76,11 +76,11 @@ describe('IntRangePipe', () => {
         expect(pipe.transform('50', metadata)).toBe(50);
     });
 
-    it('should clamp value to max if it exceeds max', () => {
+    it('should clamp value to max if it exceeds max (default)', () => {
         expect(pipe.transform('150', metadata)).toBe(100);
     });
 
-    it('should clamp value to min if it is below min', () => {
+    it('should clamp value to min if it is below min (default)', () => {
         expect(pipe.transform('5', metadata)).toBe(10);
     });
 
@@ -90,5 +90,15 @@ describe('IntRangePipe', () => {
 
     it('should handle numeric input directly', () => {
         expect(pipe.transform(50, metadata)).toBe(50);
+    });
+
+    it('should throw exception if strictMin is true and value is below min', () => {
+        const strictPipe = new IntRangePipe(10, 100, { strictMin: true });
+        expect(() => strictPipe.transform('5', metadata)).toThrow(BadRequestException);
+    });
+
+    it('should throw exception if strictMax is true and value is above max', () => {
+        const strictPipe = new IntRangePipe(10, 100, { strictMax: true });
+        expect(() => strictPipe.transform('150', metadata)).toThrow(BadRequestException);
     });
 });
