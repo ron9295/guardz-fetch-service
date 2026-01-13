@@ -147,7 +147,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    async getResults(requestId: string, cursor: number = 0, count: number = 100): Promise<PaginatedFetchResult> {
+    async getResults(requestId: string, cursor: number = 0, limit: number = 100): Promise<PaginatedFetchResult> {
         // 1. Check Request Status
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
         if (!request) {
@@ -164,7 +164,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
 
         // 2. Try Cache (Only for completed requests)
-        const cacheKey = `results:${requestId}:${cursor}:${count}`;
+        const cacheKey = `results:${requestId}:${cursor}:${limit}`;
         const cached = await this.redis.get(cacheKey);
         if (cached) {
             this.logger.debug(`Cache hit for results ${cacheKey}`);
@@ -176,7 +176,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         const [results, total] = await this.resultRepository.findAndCount({
             where: { requestId },
-            take: count,
+            take: limit,
             skip: skip,
             order: { originalIndex: 'ASC' } // Ensure consistent ordering based on input
         });
@@ -206,7 +206,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             return result;
         }));
 
-        const nextCursor = (skip + count < total) ? (skip + count).toString() : null;
+        const nextCursor = (skip + limit < total) ? (skip + limit).toString() : null;
 
         const response: PaginatedFetchResult = {
             status: 'completed',
