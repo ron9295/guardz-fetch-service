@@ -1,11 +1,16 @@
-import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
 import { PaginationDto } from './pagination.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiSecurity } from '@nestjs/swagger';
+import { ApiKeyGuard } from './auth/guards/api-key.guard';
+import { CurrentUser } from './auth/decorators/current-user.decorator';
+import { UserEntity } from './auth/entities/user.entity';
 
 @Controller({ path: 'scans', version: '1' })
 @ApiTags('Scans v1')
+@UseGuards(ApiKeyGuard)
+@ApiSecurity('x-api-key')
 export class AppController {
     private readonly logger = new Logger(AppController.name);
 
@@ -13,9 +18,12 @@ export class AppController {
 
     @Post()
     @HttpCode(HttpStatus.ACCEPTED)
-    async fetchUrls(@Body() fetchUrlDto: FetchUrlDto) {
-        this.logger.log(`Received fetch request for ${fetchUrlDto.urls.length} URLs`);
-        const requestId = await this.appService.fetchUrls(fetchUrlDto.urls);
+    async fetchUrls(
+        @CurrentUser() user: UserEntity,
+        @Body() fetchUrlDto: FetchUrlDto
+    ) {
+        this.logger.log(`User ${user.id} received fetch request for ${fetchUrlDto.urls.length} URLs`);
+        const requestId = await this.appService.fetchUrls(fetchUrlDto.urls, user.id);
         return { message: 'Fetching started', requestId, resultCount: fetchUrlDto.urls.length };
     }
 

@@ -11,6 +11,9 @@ import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RequestEntity } from './entities/request.entity';
 import { ResultEntity } from './entities/result.entity';
+import { AuthModule } from './auth/auth.module';
+import { UserEntity } from './auth/entities/user.entity';
+import { ApiKeyEntity } from './auth/entities/api-key.entity';
 
 @Module({
     imports: [
@@ -24,11 +27,12 @@ import { ResultEntity } from './entities/result.entity';
                 username: configService.get<string>('POSTGRES_USER', 'user'),
                 password: configService.get<string>('POSTGRES_PASSWORD', 'password'),
                 database: configService.get<string>('POSTGRES_DB', 'scraper_db'),
-                entities: [RequestEntity, ResultEntity],
+                entities: [RequestEntity, ResultEntity, UserEntity, ApiKeyEntity],
                 synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true), // Dev only
             }),
         }),
         TypeOrmModule.forFeature([RequestEntity, ResultEntity]),
+        AuthModule,
         RabbitMQModule.forRootAsync({
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => {

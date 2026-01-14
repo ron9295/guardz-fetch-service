@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ApiKeyGuard } from './auth/guards/api-key.guard';
 
 jest.mock('uuid', () => ({
     v4: () => 'test-request-id',
@@ -25,7 +26,10 @@ describe('AppController', () => {
                     useValue: mockAppService,
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(ApiKeyGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<AppController>(AppController);
     });
@@ -37,11 +41,12 @@ describe('AppController', () => {
     describe('fetchUrls', () => {
         it('should call appService.fetchUrls', async () => {
             const dto = { urls: ['http://example.com'] };
+            const mockUser = { id: 'user-1', email: 'test@test.com', name: 'Test', isActive: true };
             mockAppService.fetchUrls.mockResolvedValue('req-1');
 
-            const result = await controller.fetchUrls(dto);
+            const result = await controller.fetchUrls(mockUser as any, dto);
 
-            expect(mockAppService.fetchUrls).toHaveBeenCalledWith(dto.urls);
+            expect(mockAppService.fetchUrls).toHaveBeenCalledWith(dto.urls, 'user-1');
             expect(result).toEqual({ message: 'Fetching started', requestId: 'req-1', resultCount: 1 });
         });
     });

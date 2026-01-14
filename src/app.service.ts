@@ -37,7 +37,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
      * Submits a request to the reliable queue (RabbitMQ).
      * Creates a Request record in Postgres.
      */
-    async fetchUrls(urls: string[]): Promise<string> {
+    async fetchUrls(urls: string[], userId?: string): Promise<string> {
         const requestId = uuidv4();
 
         // 1. Create Request Entity (The Parent)
@@ -45,7 +45,8 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             id: requestId,
             total: urls.length,
             processed: 0,
-            status: 'processing'
+            status: 'processing',
+            userId,
         });
 
         this.logger.log(`[${requestId}] Created request for ${urls.length} URLs`);
