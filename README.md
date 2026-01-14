@@ -82,4 +82,5 @@ The application can be configured using environment variables. All variables are
 | `THROTTLE_LIMIT` | `100` | Maximum number of requests allowed per time window. |
 | `FETCH_TIMEOUT` | `5000` | Timeout for fetching URLs in milliseconds. |
 | `FETCH_MAX_REDIRECTS` | `5` | Maximum number of redirects to follow when fetching URLs. |
+| `FETCH_MAX_SIZE_MB` | `5` | Maximum size of fetched content in megabytes. |
 
