@@ -35,6 +35,13 @@ describe('AppService', () => {
             increment: jest.fn(),
             update: jest.fn(),
             findOne: jest.fn().mockResolvedValue({ processed: 100, total: 100 }),
+            createQueryBuilder: jest.fn(() => ({
+                update: jest.fn().mockReturnThis(),
+                set: jest.fn().mockReturnThis(),
+                where: jest.fn().mockReturnThis(),
+                andWhere: jest.fn().mockReturnThis(),
+                execute: jest.fn().mockResolvedValue({ affected: 1 }),
+            })),
         };
         mockResultRepo = {
             create: jest.fn(),
