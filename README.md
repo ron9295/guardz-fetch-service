@@ -10,6 +10,10 @@ This project was created as a home assignment for Guardz.
 * **Retrieve Content:** Endpoint to view the fetched content and metadata.
 * **Robust Fetching:** Handles HTTP redirects automatically.
 * **Error Handling:** Gracefully manages invalid URLs or network errors without crashing the service.
+* **Rate Limiting:** Built-in DoS protection with configurable rate limits:
+  - Global limit: 100 requests per minute (default)
+  - POST `/api/v1/scans`: 20 requests per minute (stricter limit for resource-intensive operations)
+  - Uses Redis for distributed rate limiting across multiple instances
 
 ## 🛠️ Prerequisites
 
@@ -74,4 +78,6 @@ The application can be configured using environment variables. All variables are
 | `AWS_SECRET_ACCESS_KEY` | `test` | AWS Secret Access Key. |
 | `S3_BUCKET_NAME` | `scraped-content` | Name of the S3 bucket to store scraped content. |
 | `PORT` | `3000` | Port for the API server. |
+| `THROTTLE_TTL` | `60000` | Rate limit time window in milliseconds (60 seconds). |
+| `THROTTLE_LIMIT` | `100` | Maximum number of requests allowed per time window. |
 

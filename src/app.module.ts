@@ -11,6 +11,13 @@ import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RequestEntity } from './entities/request.entity';
 import { ResultEntity } from './entities/result.entity';
+import { AuthModule } from './auth/auth.module';
+import { UserEntity } from './auth/entities/user.entity';
+import { ApiKeyEntity } from './auth/entities/api-key.entity';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { APP_GUARD } from '@nestjs/core';
+import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
 
 @Module({
     imports: [
@@ -24,11 +31,12 @@ import { ResultEntity } from './entities/result.entity';
                 username: configService.get<string>('POSTGRES_USER', 'user'),
                 password: configService.get<string>('POSTGRES_PASSWORD', 'password'),
                 database: configService.get<string>('POSTGRES_DB', 'scraper_db'),
-                entities: [RequestEntity, ResultEntity],
+                entities: [RequestEntity, ResultEntity, UserEntity, ApiKeyEntity],
                 synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true), // Dev only
             }),
         }),
         TypeOrmModule.forFeature([RequestEntity, ResultEntity]),
+        AuthModule,
         RabbitMQModule.forRootAsync({
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => {
@@ -49,9 +57,31 @@ import { ResultEntity } from './entities/result.entity';
                 };
             },
         }),
+        ThrottlerModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (configService: ConfigService) => ({
+                throttlers: [
+                    {
+                        name: 'default',
+                        ttl: configService.get<number>('THROTTLE_TTL', 60000), // 60 seconds
+                        limit: configService.get<number>('THROTTLE_LIMIT', 100), // 100 requests per TTL
+                    },
+                ],
+                storage: new ThrottlerStorageRedisService(
+                    new Redis({
+                        host: configService.get<string>('REDIS_HOST', 'localhost'),
+                        port: configService.get<number>('REDIS_PORT', 6379),
+                    })
+                ),
+            }),
+        }),
     ],
     controllers: [AppController],
     providers: [
+        {
+            provide: APP_GUARD,
+            useClass: CustomThrottlerGuard,
+        },
         AppService,
         UrlConsumer,
         StorageService,

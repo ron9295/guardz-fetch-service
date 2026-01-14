@@ -15,6 +15,9 @@ export class RequestEntity {
     @Column({ default: 'processing' })
     status: string;
 
+    @Column({ nullable: true })
+    userId: string;
+
     @CreateDateColumn()
     createdAt: Date;
 

@@ -39,9 +39,11 @@ async function bootstrap() {
 
     const config = new DocumentBuilder()
         .setTitle('Guardz Fetch Service')
-        .setDescription('API to fetch and retrieve content from HTTP URLs')
+        .setDescription('API to fetch and retrieve content from HTTP URLs. Requires API key authentication.')
         .setVersion('1.0')
         .addTag('Scans v1')
+        .addTag('Authentication')
+        .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')
         .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('docs', app, document);
