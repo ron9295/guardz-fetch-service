@@ -6,6 +6,7 @@ import { ResultEntity } from './entities/result.entity';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { UrlFetcherService } from './url-fetcher.service';
 import { StorageService } from './storage.service';
+import { NotFoundException } from '@nestjs/common';
 
 jest.mock('axios');
 jest.mock('uuid', () => ({
@@ -166,9 +167,10 @@ describe('AppService', () => {
         });
     });
     describe('getResults', () => {
-        it('should throw error if request not found', async () => {
+        it('should throw NotFoundException if request not found', async () => {
             mockRequestRepo.findOne.mockResolvedValue(null);
-            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow('Request not found');
+            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow(NotFoundException);
+            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow("Request with ID 'invalid-id' not found");
         });
 
         it('should return partial results if request is processing', async () => {
@@ -221,6 +223,32 @@ describe('AppService', () => {
                 3600
             );
             expect(result.status).toBe('completed');
+        });
+    });
+
+    describe('getRequestStatus', () => {
+        it('should throw NotFoundException if request not found', async () => {
+            mockRequestRepo.findOne.mockResolvedValue(null);
+            await expect(service.getRequestStatus('invalid-id')).rejects.toThrow(NotFoundException);
+            await expect(service.getRequestStatus('invalid-id')).rejects.toThrow("Request with ID 'invalid-id' not found");
+        });
+
+        it('should return status with percentage', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({
+                id: 'req-1',
+                status: 'processing',
+                total: 100,
+                processed: 50
+            });
+
+            const result = await service.getRequestStatus('req-1');
+
+            expect(result).toEqual({
+                status: 'processing',
+                total: 100,
+                processed: 50,
+                percentage: 50
+            });
         });
     });
 });
