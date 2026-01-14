@@ -58,18 +58,6 @@ import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
                     ],
                     queues: [
                         {
-                            name: 'fetch_queue_rabbitmq',
-                            exchange: 'scraper_exchange',
-                            routingKey: 'fetch.chunk',
-                            options: {
-                                durable: true,
-                                arguments: {
-                                    'x-dead-letter-exchange': 'scraper_dlx',
-                                    'x-dead-letter-routing-key': 'fetch.chunk',
-                                }
-                            },
-                        },
-                        {
                             name: 'fetch_dlq_rabbitmq',
                             exchange: 'scraper_dlx',
                             routingKey: 'fetch.chunk', // Use same routing key to catch dead letters
