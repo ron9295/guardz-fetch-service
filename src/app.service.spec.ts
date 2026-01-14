@@ -169,12 +169,12 @@ describe('AppService', () => {
     describe('getResults', () => {
         it('should throw NotFoundException if request not found', async () => {
             mockRequestRepo.findOne.mockResolvedValue(null);
-            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow(NotFoundException);
-            await expect(service.getResults('invalid-id', 0, 10)).rejects.toThrow("Request with ID 'invalid-id' not found");
+            await expect(service.getResults('invalid-id', 'user-1', 0, 10)).rejects.toThrow(NotFoundException);
+            await expect(service.getResults('invalid-id', 'user-1', 0, 10)).rejects.toThrow("Request with ID 'invalid-id' not found");
         });
 
         it('should return partial results if request is processing', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing', total: 2 });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing', total: 2, userId: 'user-1' });
 
             const dbResults = [
                 { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 },
@@ -182,7 +182,7 @@ describe('AppService', () => {
             ];
             mockResultRepo.find.mockResolvedValue(dbResults);
 
-            const result = await service.getResults('req-1', 0, 10);
+            const result = await service.getResults('req-1', 'user-1', 0, 10);
 
             expect(result.status).toBe('processing');
             expect(result.data).toHaveLength(2);
@@ -192,11 +192,11 @@ describe('AppService', () => {
         });
 
         it('should return cached results if request is completed and cache exists', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100 });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100, userId: 'user-1' });
             const cachedResponse = { status: 'completed', data: [], meta: { next_cursor: '10' } };
             mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
 
-            const result = await service.getResults('req-1', 0, 10);
+            const result = await service.getResults('req-1', 'user-1', 0, 10);
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
             expect(result).toEqual(cachedResponse);
@@ -204,7 +204,7 @@ describe('AppService', () => {
         });
 
         it('should fetch from DB, hydrate from S3, and cache if request is completed and cache misses', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100 });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100, userId: 'user-1' });
             mockRedis.get.mockResolvedValue(null);
 
             const dbResults = [
@@ -212,7 +212,7 @@ describe('AppService', () => {
             ];
             mockResultRepo.find.mockResolvedValue(dbResults);
 
-            const result = await service.getResults('req-1', 0, 10);
+            const result = await service.getResults('req-1', 'user-1', 0, 10);
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
             expect(mockResultRepo.find).toHaveBeenCalled();
@@ -229,8 +229,8 @@ describe('AppService', () => {
     describe('getRequestStatus', () => {
         it('should throw NotFoundException if request not found', async () => {
             mockRequestRepo.findOne.mockResolvedValue(null);
-            await expect(service.getRequestStatus('invalid-id')).rejects.toThrow(NotFoundException);
-            await expect(service.getRequestStatus('invalid-id')).rejects.toThrow("Request with ID 'invalid-id' not found");
+            await expect(service.getRequestStatus('invalid-id', 'user-1')).rejects.toThrow(NotFoundException);
+            await expect(service.getRequestStatus('invalid-id', 'user-1')).rejects.toThrow("Request with ID 'invalid-id' not found");
         });
 
         it('should return status with percentage', async () => {
@@ -238,10 +238,11 @@ describe('AppService', () => {
                 id: 'req-1',
                 status: 'processing',
                 total: 100,
-                processed: 50
+                processed: 50,
+                userId: 'user-1'
             });
 
-            const result = await service.getRequestStatus('req-1');
+            const result = await service.getRequestStatus('req-1', 'user-1');
 
             expect(result).toEqual({
                 status: 'processing',

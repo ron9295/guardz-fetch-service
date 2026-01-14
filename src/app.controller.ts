@@ -29,18 +29,21 @@ export class AppController {
 
     @Get(':id/results')
     getResults(
+        @CurrentUser() user: UserEntity,
         @Param('id', ParseUUIDPipe) id: string,
         @Query() query: PaginationDto
     ) {
-        // AppService handles defaults for cursor (0) and limit (100)
-        this.logger.log(`Fetching results for requestId: ${id} cursor: ${query.cursor} limit: ${query.limit}`);
-        return this.appService.getResults(id, query.cursor, query.limit);
+        this.logger.log(`User ${user.id} fetching results for requestId: ${id}`);
+        return this.appService.getResults(id, user.id, query.cursor, query.limit);
     }
 
     @Get(':id/status')
-    getRequestStatus(@Param('id', ParseUUIDPipe) id: string) {
-        this.logger.log(`Fetching status for requestId: ${id}`);
-        return this.appService.getRequestStatus(id);
+    getRequestStatus(
+        @CurrentUser() user: UserEntity,
+        @Param('id', ParseUUIDPipe) id: string
+    ) {
+        this.logger.log(`User ${user.id} fetching status for requestId: ${id}`);
+        return this.appService.getRequestStatus(id, user.id);
     }
 
 

@@ -53,18 +53,20 @@ describe('AppController', () => {
 
     describe('getResults', () => {
         it('should call appService.getResults with correct params', async () => {
+            const mockUser = { id: 'user-1', email: 'test@test.com', name: 'Test', isActive: true };
             mockAppService.getResults.mockResolvedValue({});
             const query = { cursor: 10, limit: 50 };
-            await controller.getResults('req-1', query);
-            expect(mockAppService.getResults).toHaveBeenCalledWith('req-1', 10, 50);
+            await controller.getResults(mockUser as any, 'req-1', query);
+            expect(mockAppService.getResults).toHaveBeenCalledWith('req-1', 'user-1', 10, 50);
         });
     });
 
     describe('getRequestStatus', () => {
         it('should call appService.getRequestStatus', async () => {
+            const mockUser = { id: 'user-1', email: 'test@test.com', name: 'Test', isActive: true };
             mockAppService.getRequestStatus.mockResolvedValue({});
-            await controller.getRequestStatus('req-1');
-            expect(mockAppService.getRequestStatus).toHaveBeenCalledWith('req-1');
+            await controller.getRequestStatus(mockUser as any, 'req-1');
+            expect(mockAppService.getRequestStatus).toHaveBeenCalledWith('req-1', 'user-1');
         });
     });
 });

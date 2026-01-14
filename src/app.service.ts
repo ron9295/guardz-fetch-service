@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
@@ -148,11 +148,16 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    async getResults(requestId: string, cursor: number = 0, limit: number = 100): Promise<PaginatedFetchResult> {
+    async getResults(requestId: string, userId: string, cursor: number = 0, limit: number = 100): Promise<PaginatedFetchResult> {
         // 1. Check Request Status
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
         if (!request) {
             throw new NotFoundException(`Request with ID '${requestId}' not found`);
+        }
+
+        // 2. Authorization: Check if user owns this request
+        if (request.userId !== userId && userId !== 'admin') {
+            throw new ForbiddenException('You do not have permission to access this request');
         }
 
         // 2. Try Cache (Only for completed requests) - Cache contains metadata only, not HTML
@@ -253,11 +258,16 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         return response;
     }
 
-    async getRequestStatus(requestId: string): Promise<{ status: string; total: number; processed: number; percentage: number }> {
+    async getRequestStatus(requestId: string, userId: string): Promise<{ status: string; total: number; processed: number; percentage: number }> {
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
 
         if (!request) {
             throw new NotFoundException(`Request with ID '${requestId}' not found`);
+        }
+
+        // Authorization: Check if user owns this request
+        if (request.userId !== userId && userId !== 'admin') {
+            throw new ForbiddenException('You do not have permission to access this request');
         }
 
         const percentage = request.total > 0 ? (request.processed / request.total) * 100 : 0;
