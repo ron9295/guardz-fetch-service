@@ -178,7 +178,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         } else {
             // Fetch from DB (for both completed and in-progress requests)
             // Use WHERE clause with originalIndex for efficient pagination (O(1) instead of O(n))
-            const [dbResults, dbTotal] = await this.resultRepository.findAndCount({
+            const dbResults = await this.resultRepository.find({
                 where: {
                     requestId,
                     ...(cursor > 0 && { originalIndex: MoreThanOrEqual(cursor) })

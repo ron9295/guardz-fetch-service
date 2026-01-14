@@ -48,6 +48,7 @@ describe('AppService', () => {
             })),
             findOne: jest.fn(),
             count: jest.fn().mockResolvedValue(1),
+            find: jest.fn(),
             findAndCount: jest.fn(),
         };
         mockS3Send = jest.fn();
@@ -171,13 +172,13 @@ describe('AppService', () => {
         });
 
         it('should return partial results if request is processing', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing', total: 2 });
 
             const dbResults = [
-                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date() },
-                { url: 'u2', status: 'pending', statusCode: null, title: null, s3Key: null, fetchedAt: null }
+                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 },
+                { url: 'u2', status: 'pending', statusCode: null, title: null, s3Key: null, fetchedAt: null, originalIndex: 1 }
             ];
-            mockResultRepo.findAndCount.mockResolvedValue([dbResults, 2]);
+            mockResultRepo.find.mockResolvedValue(dbResults);
 
             const result = await service.getResults('req-1', 0, 10);
 
@@ -185,11 +186,11 @@ describe('AppService', () => {
             expect(result.data).toHaveLength(2);
             expect(mockRedis.get).not.toHaveBeenCalled(); // No cache check for in-progress
             expect(mockRedis.set).not.toHaveBeenCalled(); // No caching for in-progress
-            expect(mockResultRepo.findAndCount).toHaveBeenCalled();
+            expect(mockResultRepo.find).toHaveBeenCalled();
         });
 
         it('should return cached results if request is completed and cache exists', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100 });
             const cachedResponse = { status: 'completed', data: [], meta: { next_cursor: '10' } };
             mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
 
@@ -197,22 +198,22 @@ describe('AppService', () => {
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
             expect(result).toEqual(cachedResponse);
-            expect(mockResultRepo.findAndCount).not.toHaveBeenCalled();
+            expect(mockResultRepo.find).not.toHaveBeenCalled();
         });
 
         it('should fetch from DB, hydrate from S3, and cache if request is completed and cache misses', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100 });
             mockRedis.get.mockResolvedValue(null);
 
             const dbResults = [
-                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date() }
+                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
             ];
-            mockResultRepo.findAndCount.mockResolvedValue([dbResults, 100]);
+            mockResultRepo.find.mockResolvedValue(dbResults);
 
             const result = await service.getResults('req-1', 0, 10);
 
             expect(mockRedis.get).toHaveBeenCalledWith('results:req-1:0:10');
-            expect(mockResultRepo.findAndCount).toHaveBeenCalled();
+            expect(mockResultRepo.find).toHaveBeenCalled();
             expect(mockRedis.set).toHaveBeenCalledWith(
                 'results:req-1:0:10',
                 expect.any(String), // JSON string
