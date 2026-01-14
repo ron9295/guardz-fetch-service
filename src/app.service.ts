@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger, NotFoundException } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
@@ -151,7 +151,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         // 1. Check Request Status
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
         if (!request) {
-            throw new Error('Request not found');
+            throw new NotFoundException(`Request with ID '${requestId}' not found`);
         }
 
         // 2. Try Cache (Only for completed requests) - Cache contains metadata only, not HTML
@@ -256,7 +256,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
 
         if (!request) {
-            throw new Error('Request not found');
+            throw new NotFoundException(`Request with ID '${requestId}' not found`);
         }
 
         const percentage = request.total > 0 ? (request.processed / request.total) * 100 : 0;
