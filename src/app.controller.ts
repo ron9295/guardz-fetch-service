@@ -2,8 +2,10 @@ import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
 import { PaginationDto } from './pagination.dto';
+import { ApiTags } from '@nestjs/swagger';
 
-@Controller('scans')
+@Controller({ path: 'scans', version: '1' })
+@ApiTags('Scans v1')
 export class AppController {
     private readonly logger = new Logger(AppController.name);
 
