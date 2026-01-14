@@ -51,6 +51,28 @@ import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
                             name: 'scraper_exchange',
                             type: 'topic',
                         },
+                        {
+                            name: 'scraper_dlx',
+                            type: 'topic',
+                        },
+                    ],
+                    queues: [
+                        {
+                            name: 'fetch_queue_rabbitmq',
+                            exchange: 'scraper_exchange',
+                            routingKey: 'fetch.chunk',
+                            options: {
+                                durable: true,
+                            },
+                        },
+                        {
+                            name: 'fetch_dlq_rabbitmq',
+                            exchange: 'scraper_dlx',
+                            routingKey: 'fetch.chunk', // Use same routing key to catch dead letters
+                            options: {
+                                durable: true,
+                            },
+                        },
                     ],
                     uri: `amqp://${user}:${pass}@${host}:${port}`,
                     connectionInitOptions: { wait: false },
