@@ -1,10 +1,11 @@
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserEntity } from './entities/user.entity';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiTags('Authentication')
@@ -17,10 +18,16 @@ export class AuthController {
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Generate a new API key' })
     @ApiResponse({ status: 201, description: 'API key created successfully' })
+    @ApiResponse({ status: 400, description: 'Admin cannot create API keys' })
     async createApiKey(
         @CurrentUser() user: UserEntity,
         @Body() dto: CreateApiKeyDto,
     ) {
+        // Admin is a virtual user and cannot have API keys
+        if (user.id === 'admin') {
+            throw new BadRequestException('Admin user cannot create API keys. Please create a regular user first.');
+        }
+
         const result = await this.authService.createApiKey(user.id, dto.name);
         return {
             message: 'API key created successfully. Save this key - it will not be shown again!',
@@ -56,14 +63,14 @@ export class AuthController {
     @ApiResponse({ status: 403, description: 'Only admin can create users' })
     async createUser(
         @CurrentUser() currentUser: UserEntity,
-        @Body() body: { email: string; name: string },
+        @Body() dto: CreateUserDto,
     ) {
         // Critical security check: only admin can create users
         if (currentUser.id !== 'admin') {
             throw new ForbiddenException('Only admin can create users');
         }
 
-        const user = await this.authService.createUser(body.email, body.name);
+        const user = await this.authService.createUser(dto.email, dto.name);
         return {
             message: 'User created successfully',
             user: {
