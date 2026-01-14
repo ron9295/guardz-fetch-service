@@ -128,9 +128,8 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
 
         this.logger.debug(`[${requestId}] Batch updated: ${results.length} items`);
 
-        // 4. Update counter safely
+        // 4. Update counter safely using Conditional Update
         // We count the actual number of completed items in the DB.
-        // This is idempotent: if the job runs twice, the count will just be calculated again correctly.
         const processedCount = await this.resultRepository.count({
             where: {
                 requestId,
@@ -138,7 +137,15 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             }
         });
 
-        await this.requestRepository.update({ id: requestId }, { processed: processedCount });
+        // Use QueryBuilder to avoid Race Condition
+        // We update only if the new number is greater than the old number
+        await this.requestRepository
+            .createQueryBuilder()
+            .update()
+            .set({ processed: processedCount })
+            .where("id = :id", { id: requestId })
+            .andWhere("processed < :count", { count: processedCount }) // <--- Protection against overwriting
+            .execute();
 
         // 5. Check completion
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
