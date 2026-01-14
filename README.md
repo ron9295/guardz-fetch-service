@@ -15,6 +15,12 @@ This project was created as a home assignment for Guardz.
   - POST `/api/v1/scans`: 20 requests per minute (stricter limit for resource-intensive operations)
   - Uses Redis for distributed rate limiting across multiple instances
 
+## 📚 Documentation
+
+*   [System Architecture](architecture.md)
+*   [Authentication & Rate Limiting](docs/AUTH_AND_LIMITS.md)
+*   [API Versioning](docs/API_VERSIONING.md)
+
 ## 🛠️ Prerequisites
 
 * [Node.js](https://nodejs.org/) (LTS version recommended)
@@ -83,4 +89,12 @@ The application can be configured using environment variables. All variables are
 | `FETCH_TIMEOUT` | `5000` | Timeout for fetching URLs in milliseconds. |
 | `FETCH_MAX_REDIRECTS` | `5` | Maximum number of redirects to follow when fetching URLs. |
 | `FETCH_MAX_SIZE_MB` | `5` | Maximum size of fetched content in megabytes. |
+| `ADMIN_API_KEY` | `123456` | Master API Key for administrative access. |
+| `POSTGRES_HOST` | `postgres` | Hostname of the Postgres database. |
+| `POSTGRES_USER` | `user` | Database username. |
+| `POSTGRES_PASSWORD` | `password` | Database password. |
+| `POSTGRES_DB` | `scraper_db` | Database name. |
+| `RABBITMQ_HOST` | `rabbitmq` | Hostname of the RabbitMQ server. |
+| `RABBITMQ_USER` | `user` | RabbitMQ username. |
+| `RABBITMQ_PASS` | `password` | RabbitMQ password. |
 
