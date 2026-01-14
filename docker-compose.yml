@@ -40,6 +40,12 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=scraper_db
+      - THROTTLE_TTL=60000
+      - THROTTLE_LIMIT=100
+      - FETCH_TIMEOUT=5000
+      - FETCH_MAX_REDIRECTS=5
+      - FETCH_MAX_SIZE_MB=15
+      - ADMIN_API_KEY=123456
     volumes:
       - .:/app
       - /app/node_modules
