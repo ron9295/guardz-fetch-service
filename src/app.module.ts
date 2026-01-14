@@ -63,6 +63,10 @@ import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
                             routingKey: 'fetch.chunk',
                             options: {
                                 durable: true,
+                                arguments: {
+                                    'x-dead-letter-exchange': 'scraper_dlx',
+                                    'x-dead-letter-routing-key': 'fetch.chunk',
+                                }
                             },
                         },
                         {
