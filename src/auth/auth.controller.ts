@@ -16,19 +16,27 @@ export class AuthController {
 
     @Post('keys')
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Generate a new API key' })
+    @ApiOperation({ summary: 'Generate a new API key (admin can specify userId)' })
     @ApiResponse({ status: 201, description: 'API key created successfully' })
-    @ApiResponse({ status: 400, description: 'Admin cannot create API keys' })
     async createApiKey(
-        @CurrentUser() user: UserEntity,
+        @CurrentUser() currentUser: UserEntity,
         @Body() dto: CreateApiKeyDto,
     ) {
-        // Admin is a virtual user and cannot have API keys
-        if (user.id === 'admin') {
-            throw new BadRequestException('Admin user cannot create API keys. Please create a regular user first.');
+        // Determine target userId
+        let targetUserId: string;
+
+        if (currentUser.id === 'admin') {
+            // Admin must specify userId in the DTO
+            if (!dto.userId) {
+                throw new BadRequestException('Admin must specify userId when creating API keys');
+            }
+            targetUserId = dto.userId;
+        } else {
+            // Regular users can only create keys for themselves
+            targetUserId = currentUser.id;
         }
 
-        const result = await this.authService.createApiKey(user.id, dto.name);
+        const result = await this.authService.createApiKey(targetUserId, dto.name);
         return {
             message: 'API key created successfully. Save this key - it will not be shown again!',
             apiKey: result.key,

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateApiKeyDto {
@@ -13,4 +13,13 @@ export class CreateApiKeyDto {
     @MinLength(3)
     @MaxLength(100)
     name: string;
+
+    @ApiProperty({
+        description: 'User ID to create the key for (admin only)',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        required: false
+    })
+    @IsOptional()
+    @IsUUID()
+    userId?: string;
 }
