@@ -12,11 +12,11 @@ export class FetchUrlDto {
   @IsUrl({
     protocols: ['http', 'https'],
     require_protocol: true,
-    require_valid_protocol: true, 
+    require_valid_protocol: true,
     require_tld: true
   }, {
     each: true,
-    message: 'Each URL must be a valid HTTP or HTTPS URL with protocol (e.g., https://example.com)'
+    message: 'Each URL must be a valid HTTP or HTTPS URL with protocol and TLD (e.g., https://example.com)'
   })
   urls: string[];
 }
