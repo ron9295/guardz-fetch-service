@@ -1,15 +1,19 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
 @Injectable()
 export class StorageService {
     private readonly logger = new Logger(StorageService.name);
-    private readonly bucketName = process.env.S3_BUCKET_NAME || 'scraped-content';
+    private readonly bucketName: string;
 
     constructor(
         @Inject('S3_CLIENT') private readonly s3: S3Client,
-    ) { }
+        private readonly configService: ConfigService,
+    ) {
+        this.bucketName = this.configService.get<string>('S3_BUCKET_NAME', 'scraped-content');
+    }
 
     async ensureBucketExists() {
         try {
