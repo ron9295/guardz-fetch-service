@@ -13,7 +13,9 @@ export class UrlConsumer {
         routingKey: 'fetch.chunk',
         queue: 'fetch_queue_rabbitmq',
         queueOptions: {
-            durable: true
+            durable: true,
+            deadLetterExchange: 'scraper_dlx',
+            deadLetterRoutingKey: 'fetch.chunk', // Optional: route back with same key or a specific dlq key
         }
     })
     public async processChunk(msg: { requestId: string, inputs: any[] }) {
@@ -31,7 +33,7 @@ export class UrlConsumer {
             this.logger.debug(`[${requestId}] Chunk processing completed`);
         } catch (error) {
             this.logger.error(`[${requestId}] Chunk failed`, error);
-            // TODO: In production, a Dead Letter Queue (DLQ) should be configured
+            // Nack the message to send it to DLQ (configured in queueOptions)
             return new Nack(false);
         }
     }
