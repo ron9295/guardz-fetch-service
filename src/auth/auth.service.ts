@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes, createHash } from 'crypto';
@@ -128,9 +128,17 @@ export class AuthService {
      * Create a user (for initial setup)
      */
     async createUser(email: string, name: string): Promise<UserEntity> {
-        const user = this.userRepo.create({ email, name });
-        await this.userRepo.save(user);
-        this.logger.log(`Created user: ${email}`);
-        return user;
+        try {
+            const user = this.userRepo.create({ email, name });
+            await this.userRepo.save(user);
+            this.logger.log(`Created user: ${email}`);
+            return user;
+        } catch (error) {
+            // Postgres unique constraint violation code is 23505
+            if (error.code === '23505') {
+                throw new ConflictException('Email already exists');
+            }
+            throw error;
+        }
     }
 }

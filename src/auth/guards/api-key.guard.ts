@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -21,7 +22,15 @@ export class ApiKeyGuard implements CanActivate {
         // Allows calling POST /auth/keys to create the first user
         const adminKey = this.configService.get<string>('ADMIN_API_KEY');
         if (adminKey && key === adminKey) {
-            request.user = { id: 'admin', email: 'admin@system', name: 'Admin', isActive: true };
+            // Create admin user object with all required fields
+            request.user = {
+                id: 'admin',
+                email: 'admin@system',
+                name: 'System Admin',
+                isActive: true,
+                createdAt: new Date(),
+                apiKeys: [],
+            } as UserEntity;
             return true;
         }
 

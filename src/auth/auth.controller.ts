@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
@@ -53,9 +53,16 @@ export class AuthController {
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a new user (admin only)' })
     @ApiResponse({ status: 201, description: 'User created successfully' })
+    @ApiResponse({ status: 403, description: 'Only admin can create users' })
     async createUser(
+        @CurrentUser() currentUser: UserEntity,
         @Body() body: { email: string; name: string },
     ) {
+        // Critical security check: only admin can create users
+        if (currentUser.id !== 'admin') {
+            throw new ForbiddenException('Only admin can create users');
+        }
+
         const user = await this.authService.createUser(body.email, body.name);
         return {
             message: 'User created successfully',
