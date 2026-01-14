@@ -18,11 +18,15 @@ export class UrlFetcherService {
         const fetchedAt = new Date();
         const timeout = this.configService.get<number>('FETCH_TIMEOUT', 5000);
         const maxRedirects = this.configService.get<number>('FETCH_MAX_REDIRECTS', 5);
+        const maxSizeMb = this.configService.get<number>('FETCH_MAX_SIZE_MB', 5);
+        const maxSizeBytes = maxSizeMb * 1024 * 1024;
 
         try {
             const response = await axios.get(url, {
                 timeout,
                 maxRedirects,
+                maxContentLength: maxSizeBytes,
+                maxBodyLength: maxSizeBytes,
                 responseType: 'text',
             });
 
