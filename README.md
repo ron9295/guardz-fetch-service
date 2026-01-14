@@ -80,4 +80,6 @@ The application can be configured using environment variables. All variables are
 | `PORT` | `3000` | Port for the API server. |
 | `THROTTLE_TTL` | `60000` | Rate limit time window in milliseconds (60 seconds). |
 | `THROTTLE_LIMIT` | `100` | Maximum number of requests allowed per time window. |
+| `FETCH_TIMEOUT` | `5000` | Timeout for fetching URLs in milliseconds. |
+| `FETCH_MAX_REDIRECTS` | `5` | Maximum number of redirects to follow when fetching URLs. |
 

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createHash } from 'crypto';
 import { StorageService } from './storage.service';
@@ -8,14 +9,20 @@ import { FetchResult } from './interfaces/fetch.interface';
 export class UrlFetcherService {
     private readonly logger = new Logger(UrlFetcherService.name);
 
-    constructor(private readonly storageService: StorageService) { }
+    constructor(
+        private readonly storageService: StorageService,
+        private readonly configService: ConfigService,
+    ) { }
 
     async fetchAndStore(url: string, requestId: string): Promise<Omit<FetchResult, 'content'>> {
         const fetchedAt = new Date();
+        const timeout = this.configService.get<number>('FETCH_TIMEOUT', 5000);
+        const maxRedirects = this.configService.get<number>('FETCH_MAX_REDIRECTS', 5);
+
         try {
             const response = await axios.get(url, {
-                timeout: 5000,
-                maxRedirects: 5,
+                timeout,
+                maxRedirects,
                 responseType: 'text',
             });
 
