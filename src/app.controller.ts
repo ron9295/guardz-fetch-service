@@ -6,6 +6,7 @@ import { ApiTags, ApiSecurity } from '@nestjs/swagger';
 import { ApiKeyGuard } from './auth/guards/api-key.guard';
 import { CurrentUser } from './auth/decorators/current-user.decorator';
 import { UserEntity } from './auth/entities/user.entity';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller({ path: 'scans', version: '1' })
 @ApiTags('Scans v1')
@@ -18,6 +19,7 @@ export class AppController {
 
     @Post()
     @HttpCode(HttpStatus.ACCEPTED)
+    @Throttle({ default: { limit: 20, ttl: 60000 } })
     async fetchUrls(
         @CurrentUser() user: UserEntity,
         @Body() fetchUrlDto: FetchUrlDto
