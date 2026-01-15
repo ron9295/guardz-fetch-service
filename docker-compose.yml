@@ -46,6 +46,7 @@ services:
       - FETCH_MAX_REDIRECTS=5
       - FETCH_MAX_SIZE_MB=15
       - ADMIN_API_KEY=123456
+      - MAX_URLS_PER_REQUEST=1000
     volumes:
       - .:/app
       - /app/node_modules
