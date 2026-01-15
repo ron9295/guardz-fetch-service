@@ -2,11 +2,14 @@ import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus
 import { AppService } from './app.service';
 import { FetchUrlDto } from './fetch-url.dto';
 import { PaginationDto } from './pagination.dto';
-import { ApiTags, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ApiKeyGuard } from './auth/guards/api-key.guard';
 import { CurrentUser } from './auth/decorators/current-user.decorator';
 import { UserEntity } from './auth/entities/user.entity';
 import { Throttle } from '@nestjs/throttler';
+import { FetchResponseDto } from './dto/fetch-response.dto';
+import { ResultsResponseDto } from './dto/results-response.dto';
+import { StatusResponseDto } from './dto/status-response.dto';
 
 @Controller({ path: 'scans', version: '1' })
 @ApiTags('Scans v1')
@@ -20,6 +23,10 @@ export class AppController {
     @Post()
     @HttpCode(HttpStatus.ACCEPTED)
     @Throttle({ default: { limit: 20, ttl: 60000 } })
+    @ApiOperation({ summary: 'Submit URLs for fetching' })
+    @ApiResponse({ status: 202, description: 'Fetch request accepted and queued', type: FetchResponseDto })
+    @ApiResponse({ status: 400, description: 'Bad request - invalid URLs or format' })
+    @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
     async fetchUrls(
         @CurrentUser() user: UserEntity,
         @Body() fetchUrlDto: FetchUrlDto
@@ -30,6 +37,10 @@ export class AppController {
     }
 
     @Get(':id/results')
+    @ApiOperation({ summary: 'Get paginated results for a scan request' })
+    @ApiResponse({ status: 200, description: 'Fetch results with pagination', type: ResultsResponseDto })
+    @ApiResponse({ status: 404, description: 'Request not found' })
+    @ApiResponse({ status: 403, description: 'Forbidden - not authorized to access this request' })
     getResults(
         @CurrentUser() user: UserEntity,
         @Param('id', ParseUUIDPipe) id: string,
@@ -40,6 +51,10 @@ export class AppController {
     }
 
     @Get(':id/status')
+    @ApiOperation({ summary: 'Get status and progress of a scan request' })
+    @ApiResponse({ status: 200, description: 'Scan request status and progress', type: StatusResponseDto })
+    @ApiResponse({ status: 404, description: 'Request not found' })
+    @ApiResponse({ status: 403, description: 'Forbidden - not authorized to access this request' })
     getRequestStatus(
         @CurrentUser() user: UserEntity,
         @Param('id', ParseUUIDPipe) id: string
