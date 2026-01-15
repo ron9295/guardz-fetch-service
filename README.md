@@ -97,4 +97,5 @@ The application can be configured using environment variables. All variables are
 | `RABBITMQ_HOST` | `rabbitmq` | Hostname of the RabbitMQ server. |
 | `RABBITMQ_USER` | `user` | RabbitMQ username. |
 | `RABBITMQ_PASS` | `password` | RabbitMQ password. |
+| `MAX_URLS_PER_REQUEST` | `1000` | Maximum number of URLs allowed per request. |
 
