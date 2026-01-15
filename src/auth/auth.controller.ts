@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, HttpCode, HttpStatus, ForbiddenException, BadRequestException, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
@@ -59,7 +59,7 @@ export class AuthController {
     @ApiResponse({ status: 204, description: 'API key revoked successfully' })
     async revokeKey(
         @CurrentUser() user: UserEntity,
-        @Param('id') keyId: string,
+        @Param('id', ParseUUIDPipe) keyId: string,
     ) {
         await this.authService.revokeApiKey(keyId, user.id);
     }
