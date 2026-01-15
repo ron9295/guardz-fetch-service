@@ -4,6 +4,7 @@ import axios from 'axios';
 import { createHash } from 'crypto';
 import { StorageService } from './storage.service';
 import { FetchResult } from './interfaces/fetch.interface';
+import { FetchStatus } from './enums/fetch-status.enum';
 
 @Injectable()
 export class UrlFetcherService {
@@ -40,7 +41,7 @@ export class UrlFetcherService {
 
             return {
                 url,
-                status: 'success',
+                status: FetchStatus.SUCCESS,
                 statusCode: response.status,
                 title,
                 s3Key,
@@ -50,7 +51,7 @@ export class UrlFetcherService {
             this.logger.error(`Failed to fetch ${url}: ${error.message}`);
             return {
                 url,
-                status: 'error',
+                status: FetchStatus.ERROR,
                 error: error.message || 'Unknown error',
                 statusCode: error.response?.status,
                 fetchedAt,

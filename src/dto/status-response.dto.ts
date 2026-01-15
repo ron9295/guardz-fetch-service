@@ -1,12 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ScanStatus } from '../enums/scan-status.enum';
 
 export class StatusResponseDto {
     @ApiProperty({
         description: 'Status of the scan request',
-        enum: ['pending', 'in_progress', 'completed', 'failed'],
-        example: 'in_progress'
+        enum: ScanStatus,
+        example: ScanStatus.IN_PROGRESS
     })
-    status: string;
+    status: ScanStatus;
 
     @ApiProperty({
         description: 'Total number of URLs in the scan',

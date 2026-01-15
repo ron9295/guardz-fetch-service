@@ -1,7 +1,9 @@
+import { FetchStatus } from '../enums/fetch-status.enum';
+import { ScanStatus } from '../enums/scan-status.enum';
 
 export interface FetchResult {
     url: string;
-    status: 'success' | 'error';
+    status: FetchStatus;
     statusCode?: number;
     title?: string;
     s3Key?: string;
@@ -17,9 +19,9 @@ export interface FetchInput {
 }
 
 export interface PaginatedFetchResult {
-    status: string;
+    status: ScanStatus;
     data: FetchResult[];
     meta: {
-        next_cursor: string | null;
+        nextCursor: string | null;
     };
 }

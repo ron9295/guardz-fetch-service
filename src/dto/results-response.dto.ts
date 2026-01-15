@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ScanStatus } from '../enums/scan-status.enum';
+import { FetchStatus } from '../enums/fetch-status.enum';
 
 class FetchResultDto {
     @ApiProperty({
@@ -9,10 +11,10 @@ class FetchResultDto {
 
     @ApiProperty({
         description: 'Status of the fetch operation',
-        enum: ['success', 'error'],
-        example: 'success'
+        enum: FetchStatus,
+        example: FetchStatus.SUCCESS
     })
-    status: 'success' | 'error';
+    status: FetchStatus;
 
     @ApiProperty({
         description: 'HTTP status code if successful',
@@ -56,16 +58,16 @@ class ResultsMetaDto {
         example: '10',
         nullable: true
     })
-    next_cursor: string | null;
+    nextCursor: string | null;
 }
 
 export class ResultsResponseDto {
     @ApiProperty({
         description: 'Status of the scan request',
-        enum: ['pending', 'in_progress', 'completed', 'failed'],
-        example: 'completed'
+        enum: ScanStatus,
+        example: ScanStatus.COMPLETED
     })
-    status: string;
+    status: ScanStatus;
 
     @ApiProperty({
         description: 'Array of fetch results',

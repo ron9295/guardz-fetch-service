@@ -1,15 +1,15 @@
 import { Body, Controller, Get, Param, Post, Logger, Query, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service';
-import { FetchUrlDto } from './fetch-url.dto';
-import { PaginationDto } from './pagination.dto';
+import { FetchUrlDto } from '../dto/fetch-url.dto';
+import { PaginationDto } from '../dto/pagination.dto';
 import { ApiTags, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ApiKeyGuard } from './auth/guards/api-key.guard';
-import { CurrentUser } from './auth/decorators/current-user.decorator';
-import { UserEntity } from './auth/entities/user.entity';
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserEntity } from '../auth/entities/user.entity';
 import { Throttle } from '@nestjs/throttler';
-import { FetchResponseDto } from './dto/fetch-response.dto';
-import { ResultsResponseDto } from './dto/results-response.dto';
-import { StatusResponseDto } from './dto/status-response.dto';
+import { FetchResponseDto } from '../dto/fetch-response.dto';
+import { ResultsResponseDto } from '../dto/results-response.dto';
+import { StatusResponseDto } from '../dto/status-response.dto';
 
 @Controller({ path: 'scans', version: '1' })
 @ApiTags('Scans v1')

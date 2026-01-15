@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ApiKeyGuard } from './auth/guards/api-key.guard';
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 
 jest.mock('uuid', () => ({
     v4: () => 'test-request-id',
