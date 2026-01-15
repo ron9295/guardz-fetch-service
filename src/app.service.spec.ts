@@ -6,7 +6,7 @@ import { ResultEntity } from './entities/result.entity';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { UrlFetcherService } from './url-fetcher.service';
 import { StorageService } from './storage.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 
 jest.mock('axios');
 jest.mock('uuid', () => ({
@@ -20,8 +20,27 @@ describe('AppService', () => {
     let mockResultRepo: any;
     let mockRedis: any;
     let mockS3Send: jest.Mock;
+    let mockStorageService: any;
+    let mockRequestQueryBuilder: any;
+    let mockResultQueryBuilder: any;
 
     beforeEach(async () => {
+        mockRequestQueryBuilder = {
+            update: jest.fn().mockReturnThis(),
+            set: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            andWhere: jest.fn().mockReturnThis(),
+            execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+
+        mockResultQueryBuilder = {
+            insert: jest.fn().mockReturnThis(),
+            into: jest.fn().mockReturnThis(),
+            values: jest.fn().mockReturnThis(),
+            returning: jest.fn().mockReturnThis(),
+            execute: jest.fn().mockResolvedValue({ generatedMaps: [{ id: 1, url: 'http://example.com' }] }),
+        };
+
         mockRedis = {
             get: jest.fn(),
             set: jest.fn(),
@@ -35,29 +54,22 @@ describe('AppService', () => {
             increment: jest.fn(),
             update: jest.fn(),
             findOne: jest.fn().mockResolvedValue({ processed: 100, total: 100 }),
-            createQueryBuilder: jest.fn(() => ({
-                update: jest.fn().mockReturnThis(),
-                set: jest.fn().mockReturnThis(),
-                where: jest.fn().mockReturnThis(),
-                andWhere: jest.fn().mockReturnThis(),
-                execute: jest.fn().mockResolvedValue({ affected: 1 }),
-            })),
+            createQueryBuilder: jest.fn(() => mockRequestQueryBuilder),
         };
         mockResultRepo = {
             create: jest.fn(),
             save: jest.fn(),
             insert: jest.fn(),
-            createQueryBuilder: jest.fn(() => ({
-                insert: jest.fn().mockReturnThis(),
-                into: jest.fn().mockReturnThis(),
-                values: jest.fn().mockReturnThis(),
-                returning: jest.fn().mockReturnThis(),
-                execute: jest.fn().mockResolvedValue({ generatedMaps: [{ id: 1, url: 'http://example.com' }] }),
-            })),
+            createQueryBuilder: jest.fn(() => mockResultQueryBuilder),
             findOne: jest.fn(),
             count: jest.fn().mockResolvedValue(1),
             find: jest.fn(),
             findAndCount: jest.fn(),
+        };
+        mockStorageService = {
+            ensureBucketExists: jest.fn(),
+            getStream: jest.fn(),
+            streamToString: jest.fn(),
         };
         mockS3Send = jest.fn();
 
@@ -87,11 +99,7 @@ describe('AppService', () => {
                 },
                 {
                     provide: StorageService,
-                    useValue: {
-                        ensureBucketExists: jest.fn(),
-                        getStream: jest.fn(),
-                        streamToString: jest.fn(),
-                    },
+                    useValue: mockStorageService,
                 },
                 {
                     provide: 'S3_CLIENT',
@@ -145,6 +153,37 @@ describe('AppService', () => {
             // Let's at least trust the code change for now, or improve the mock if needed.
             // Ideally we could inspect mockResultRepo.createQueryBuilder().values.mock.calls[0][0] if we had access to that specific spy.
         });
+
+        it('should handle database connection failure gracefully', async () => {
+            mockRequestRepo.save.mockRejectedValue(new Error('DB Connection Error'));
+            await expect(service.fetchUrls(['http://example.com'])).rejects.toThrow('DB Connection Error');
+        });
+
+        it('should chunk URLs larger than BATCH_SIZE', async () => {
+            // Create 55 URLs (BATCH_SIZE is 50)
+            const urls = Array.from({ length: 55 }, (_, i) => `http://example.com/${i}`);
+
+            // Mock insert to return appropriate generated maps for 2 calls
+            mockResultQueryBuilder.execute
+                .mockResolvedValueOnce({ generatedMaps: Array(50).fill({ id: 1, url: 'u' }) })
+                .mockResolvedValueOnce({ generatedMaps: Array(5).fill({ id: 2, url: 'u' }) });
+
+            await service.fetchUrls(urls);
+
+            // Verify RabbitMQ was published twice
+            expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(2);
+        });
+
+        it('should handle duplicate URLs in same request', async () => {
+            const urls = ['http://example.com', 'http://example.com'];
+
+            await service.fetchUrls(urls);
+
+            // Verify that we attempt to insert checks for duplicates logic if exists, or just ensure it flows through
+            // The service inserts what is given.
+            expect(mockResultRepo.createQueryBuilder).toHaveBeenCalled();
+            expect(mockResultQueryBuilder.execute).toHaveBeenCalled();
+        });
     });
 
     describe('processInBatches', () => {
@@ -171,6 +210,23 @@ describe('AppService', () => {
                     status: 'success'
                 })
             ]));
+        });
+
+        it('should use safe update pattern for concurrency', async () => {
+            const inputs = [{ scanId: 'req-1', urlId: 'url-1', url: 'http://example.com' }];
+            const requestId = 'req-1';
+
+            // Mock successful fetch
+            mockResultRepo.count.mockResolvedValue(5);
+
+            await service.processInBatches(inputs, requestId);
+
+            // Verify optimistic locking / conditional update pattern
+            expect(mockRequestQueryBuilder.update).toHaveBeenCalled();
+            expect(mockRequestQueryBuilder.set).toHaveBeenCalledWith({ processed: 5 });
+            expect(mockRequestQueryBuilder.where).toHaveBeenCalledWith("id = :id", { id: requestId });
+            // Verify the crucial safety check
+            expect(mockRequestQueryBuilder.andWhere).toHaveBeenCalledWith("processed < :count", { count: 5 });
         });
     });
     describe('getResults', () => {
@@ -230,6 +286,43 @@ describe('AppService', () => {
                 3600
             );
             expect(result.status).toBe('completed');
+        });
+
+        it('should return 403 for unauthorized user', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', userId: 'user-1' });
+            await expect(service.getResults('req-1', 'user-2')).rejects.toThrow(ForbiddenException);
+        });
+
+        it('should handle missing S3 key safely', async () => {
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 1, userId: 'user-1' });
+            mockRedis.get.mockResolvedValue(null);
+
+            const dbResults = [
+                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
+            ];
+            mockResultRepo.find.mockResolvedValue(dbResults);
+
+            // Mock S3 failure/hydration failure
+            mockStorageService.getStream.mockRejectedValue(new Error('S3 Error'));
+
+            // Spy on Logger to suppress expected error log and verify it's called
+            const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
+
+            try {
+                const result = await service.getResults('req-1', 'user-1', 0, 10);
+
+                // Should return the item but with error field populated and no content
+                expect(result.data[0].content).toBeUndefined();
+                expect(result.data[0].error).toBe('Failed to retrieve content');
+
+                // Verify logger was called
+                expect(loggerSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('Failed to fetch S3 content for key k1'),
+                    expect.any(Error)
+                );
+            } finally {
+                loggerSpy.mockRestore();
+            }
         });
     });
 
