@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { AppController } from './app/app.controller';
+import { AppService } from './app/app.service';
 import Redis from 'ioredis';
 import { S3Client } from '@aws-sdk/client-s3';
 import { UrlConsumer } from './url.consumer';
@@ -32,7 +32,8 @@ import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
                 password: configService.get<string>('POSTGRES_PASSWORD', 'password'),
                 database: configService.get<string>('POSTGRES_DB', 'scraper_db'),
                 entities: [RequestEntity, ResultEntity, UserEntity, ApiKeyEntity],
-                synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true), // Dev only
+                synchronize: process.env.NODE_ENV !== 'production' &&
+                    configService.get<boolean>('DB_SYNCHRONIZE', false),
             }),
         }),
         TypeOrmModule.forFeature([RequestEntity, ResultEntity]),
