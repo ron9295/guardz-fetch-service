@@ -6,6 +6,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { UserEntity } from './entities/user.entity';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ApiKeyResponseDto } from './dto/api-key-response.dto';
+import { ListKeysResponseDto } from './dto/list-keys-response.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiTags('Authentication')
@@ -17,7 +20,8 @@ export class AuthController {
     @Post('keys')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Generate a new API key (admin can specify userId)' })
-    @ApiResponse({ status: 201, description: 'API key created successfully' })
+    @ApiResponse({ status: 201, description: 'API key created successfully', type: ApiKeyResponseDto })
+    @ApiResponse({ status: 400, description: 'Bad request - invalid input' })
     async createApiKey(
         @CurrentUser() currentUser: UserEntity,
         @Body() dto: CreateApiKeyDto,
@@ -47,7 +51,7 @@ export class AuthController {
 
     @Get('keys')
     @ApiOperation({ summary: 'List all API keys for current user' })
-    @ApiResponse({ status: 200, description: 'List of API keys (masked)' })
+    @ApiResponse({ status: 200, description: 'List of API keys (masked)', type: ListKeysResponseDto })
     async listKeys(@CurrentUser() user: UserEntity) {
         const keys = await this.authService.listUserKeys(user.id);
         return { keys };
@@ -67,8 +71,9 @@ export class AuthController {
     @Post('users')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a new user (admin only)' })
-    @ApiResponse({ status: 201, description: 'User created successfully' })
+    @ApiResponse({ status: 201, description: 'User created successfully', type: UserResponseDto })
     @ApiResponse({ status: 403, description: 'Only admin can create users' })
+    @ApiResponse({ status: 400, description: 'Bad request - invalid input' })
     async createUser(
         @CurrentUser() currentUser: UserEntity,
         @Body() dto: CreateUserDto,
