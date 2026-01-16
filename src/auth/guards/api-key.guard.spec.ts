@@ -53,6 +53,72 @@ describe('ApiKeyGuard', () => {
         expect(guard).toBeDefined();
     });
 
+    describe('Constructor Validation', () => {
+        it('should instantiate successfully when ADMIN_API_KEY is missing', async () => {
+            (mockConfigService.get as jest.Mock).mockReturnValue(null);
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    ApiKeyGuard,
+                    {
+                        provide: AuthService,
+                        useValue: mockAuthService,
+                    },
+                    {
+                        provide: ConfigService,
+                        useValue: mockConfigService,
+                    },
+                ],
+            }).compile();
+
+            const testGuard = module.get<ApiKeyGuard>(ApiKeyGuard);
+            expect(testGuard).toBeDefined();
+        });
+
+        it('should instantiate successfully when ADMIN_API_KEY is weak (less than 32 characters)', async () => {
+            (mockConfigService.get as jest.Mock).mockReturnValue('short-weak-key');
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    ApiKeyGuard,
+                    {
+                        provide: AuthService,
+                        useValue: mockAuthService,
+                    },
+                    {
+                        provide: ConfigService,
+                        useValue: mockConfigService,
+                    },
+                ],
+            }).compile();
+
+            const testGuard = module.get<ApiKeyGuard>(ApiKeyGuard);
+            expect(testGuard).toBeDefined();
+        });
+
+        it('should instantiate successfully when ADMIN_API_KEY is strong (32+ characters)', async () => {
+            (mockConfigService.get as jest.Mock).mockReturnValue('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6'); // 36 chars
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    ApiKeyGuard,
+                    {
+                        provide: AuthService,
+                        useValue: mockAuthService,
+                    },
+                    {
+                        provide: ConfigService,
+                        useValue: mockConfigService,
+                    },
+                ],
+            }).compile();
+
+            const testGuard = module.get<ApiKeyGuard>(ApiKeyGuard);
+            expect(testGuard).toBeDefined();
+        });
+    });
+
+
     describe('canActivate', () => {
         describe('Missing API Key', () => {
             it('should throw UnauthorizedException when no API key is provided', async () => {
