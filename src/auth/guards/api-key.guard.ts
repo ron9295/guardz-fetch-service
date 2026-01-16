@@ -1,14 +1,21 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
+    private readonly logger = new Logger(ApiKeyGuard.name);
+
     constructor(
         private readonly authService: AuthService,
         private readonly configService: ConfigService,
-    ) { }
+    ) {
+        const adminKey = this.configService.get<string>('ADMIN_API_KEY');
+        if (!adminKey || adminKey.length < 32) {
+            this.logger.warn('⚠️  ADMIN_API_KEY is weak or missing. Generate one with: openssl rand -hex 32');
+        }
+    }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
