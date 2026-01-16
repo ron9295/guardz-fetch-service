@@ -32,7 +32,7 @@ import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
                 password: configService.get<string>('POSTGRES_PASSWORD', 'password'),
                 database: configService.get<string>('POSTGRES_DB', 'scraper_db'),
                 entities: [RequestEntity, ResultEntity, UserEntity, ApiKeyEntity],
-                synchronize: process.env.NODE_ENV !== 'production' &&
+                synchronize: configService.get<string>('NODE_ENV') !== 'production' &&
                     configService.get<boolean>('DB_SYNCHRONIZE', false),
             }),
         }),

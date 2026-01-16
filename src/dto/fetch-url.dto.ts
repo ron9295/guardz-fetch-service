@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsUrl, ArrayNotEmpty, ArrayMaxSize } from 'class-validator';
 
+// Configuration constant - evaluated once at module load
+const MAX_URLS_PER_REQUEST = parseInt(process.env.MAX_URLS_PER_REQUEST || '1000', 10);
+
 export class FetchUrlDto {
   @ApiProperty({
     description: 'List of HTTP/HTTPS URLs to fetch (protocol required)',
@@ -9,8 +12,8 @@ export class FetchUrlDto {
   })
   @IsArray({ message: 'urls must be an array' })
   @ArrayNotEmpty({ message: 'urls array cannot be empty' })
-  @ArrayMaxSize(parseInt(process.env.MAX_URLS_PER_REQUEST || '1000', 10), {
-    message: `urls array cannot contain more than ${process.env.MAX_URLS_PER_REQUEST || 1000} URLs`
+  @ArrayMaxSize(MAX_URLS_PER_REQUEST, {
+    message: `urls array cannot contain more than ${MAX_URLS_PER_REQUEST} URLs`
   })
   @IsUrl({
     protocols: ['http', 'https'],
