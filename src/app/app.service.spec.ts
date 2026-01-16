@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppService } from './app.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { RequestEntity } from './entities/request.entity';
-import { ResultEntity } from './entities/result.entity';
+import { RequestEntity } from '../entities/request.entity';
+import { ResultEntity } from '../entities/result.entity';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { UrlFetcherService } from './url-fetcher.service';
-import { StorageService } from './storage.service';
+import { UrlFetcherService } from '../url-fetcher.service';
+import { StorageService } from '../storage.service';
 import { NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { ScanStatus } from '../enums/scan-status.enum';
+import { FetchStatus } from '../enums/fetch-status.enum';
 
 jest.mock('axios');
 jest.mock('uuid', () => ({
@@ -88,7 +90,7 @@ describe('AppService', () => {
                     provide: UrlFetcherService,
                     useValue: {
                         fetchAndStore: jest.fn().mockResolvedValue({
-                            status: 'success',
+                            status: FetchStatus.SUCCESS,
                             statusCode: 200,
                             title: 'Mock Title',
                             s3Key: 'mock/key',
@@ -207,7 +209,7 @@ describe('AppService', () => {
                     id: 'url-1',
                     requestId: 'req-1',
                     url: 'http://example.com',
-                    status: 'success'
+                    status: FetchStatus.SUCCESS
                 })
             ]));
         });
@@ -237,17 +239,17 @@ describe('AppService', () => {
         });
 
         it('should return partial results if request is processing', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'processing', total: 2, userId: 'user-1' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: ScanStatus.IN_PROGRESS, total: 2, userId: 'user-1' });
 
             const dbResults = [
-                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 },
+                { url: 'u1', status: FetchStatus.SUCCESS, statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 },
                 { url: 'u2', status: 'pending', statusCode: null, title: null, s3Key: null, fetchedAt: null, originalIndex: 1 }
             ];
             mockResultRepo.find.mockResolvedValue(dbResults);
 
             const result = await service.getResults('req-1', 'user-1', 0, 10);
 
-            expect(result.status).toBe('processing');
+            expect(result.status).toBe(ScanStatus.IN_PROGRESS);
             expect(result.data).toHaveLength(2);
             expect(mockRedis.get).not.toHaveBeenCalled(); // No cache check for in-progress
             expect(mockRedis.set).not.toHaveBeenCalled(); // No caching for in-progress
@@ -255,8 +257,8 @@ describe('AppService', () => {
         });
 
         it('should return cached results if request is completed and cache exists', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100, userId: 'user-1' });
-            const cachedResponse = { status: 'completed', data: [], meta: { next_cursor: '10' } };
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: ScanStatus.COMPLETED, total: 100, userId: 'user-1' });
+            const cachedResponse = { status: ScanStatus.COMPLETED, data: [], meta: { nextCursor: '10' } };
             mockRedis.get.mockResolvedValue(JSON.stringify(cachedResponse));
 
             const result = await service.getResults('req-1', 'user-1', 0, 10);
@@ -267,11 +269,11 @@ describe('AppService', () => {
         });
 
         it('should fetch from DB, hydrate from S3, and cache if request is completed and cache misses', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 100, userId: 'user-1' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: ScanStatus.COMPLETED, total: 100, userId: 'user-1' });
             mockRedis.get.mockResolvedValue(null);
 
             const dbResults = [
-                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
+                { url: 'u1', status: FetchStatus.SUCCESS, statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
             ];
             mockResultRepo.find.mockResolvedValue(dbResults);
 
@@ -285,7 +287,7 @@ describe('AppService', () => {
                 'EX',
                 3600
             );
-            expect(result.status).toBe('completed');
+            expect(result.status).toBe(ScanStatus.COMPLETED);
         });
 
         it('should return 403 for unauthorized user', async () => {
@@ -294,11 +296,11 @@ describe('AppService', () => {
         });
 
         it('should handle missing S3 key safely', async () => {
-            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: 'completed', total: 1, userId: 'user-1' });
+            mockRequestRepo.findOne.mockResolvedValue({ id: 'req-1', status: ScanStatus.COMPLETED, total: 1, userId: 'user-1' });
             mockRedis.get.mockResolvedValue(null);
 
             const dbResults = [
-                { url: 'u1', status: 'success', statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
+                { url: 'u1', status: FetchStatus.SUCCESS, statusCode: 200, title: 't1', s3Key: 'k1', fetchedAt: new Date(), originalIndex: 0 }
             ];
             mockResultRepo.find.mockResolvedValue(dbResults);
 
@@ -336,7 +338,7 @@ describe('AppService', () => {
         it('should return status with percentage', async () => {
             mockRequestRepo.findOne.mockResolvedValue({
                 id: 'req-1',
-                status: 'processing',
+                status: ScanStatus.IN_PROGRESS,
                 total: 100,
                 processed: 50,
                 userId: 'user-1'
@@ -345,7 +347,7 @@ describe('AppService', () => {
             const result = await service.getRequestStatus('req-1', 'user-1');
 
             expect(result).toEqual({
-                status: 'processing',
+                status: ScanStatus.IN_PROGRESS,
                 total: 100,
                 processed: 50,
                 percentage: 50

@@ -4,11 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { Repository, Not, MoreThanOrEqual } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestEntity } from './entities/request.entity';
-import { ResultEntity } from './entities/result.entity';
-import { UrlFetcherService } from './url-fetcher.service';
-import { StorageService } from './storage.service';
-import { FetchInput, FetchResult, PaginatedFetchResult } from './interfaces/fetch.interface';
+import { RequestEntity } from '../entities/request.entity';
+import { ResultEntity } from '../entities/result.entity';
+import { UrlFetcherService } from '../url-fetcher.service';
+import { StorageService } from '../storage.service';
+import { FetchInput, FetchResult, PaginatedFetchResult } from '../interfaces/fetch.interface';
+import { ScanStatus } from '../enums/scan-status.enum';
 
 @Injectable()
 export class AppService implements OnModuleInit, OnModuleDestroy {
@@ -45,7 +46,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             id: requestId,
             total: urls.length,
             processed: 0,
-            status: 'processing',
+            status: ScanStatus.IN_PROGRESS,
             userId,
         });
 
@@ -150,7 +151,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         // 5. Check completion
         const request = await this.requestRepository.findOne({ where: { id: requestId } });
         if (request && request.processed >= request.total) {
-            await this.requestRepository.update({ id: requestId }, { status: 'completed' });
+            await this.requestRepository.update({ id: requestId }, { status: ScanStatus.COMPLETED });
             this.logger.log(`[${requestId}] Request completed. processed: ${request.processed}/${request.total}`);
         }
     }
@@ -168,13 +169,18 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
         }
 
         // 2. Try Cache (Only for completed requests) - Cache contains metadata only, not HTML
-        let cachedMetadata: { status: string; data: any[]; meta: { next_cursor: string | null } } | null = null;
-        if (request.status === 'completed') {
-            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
-            const cached = await this.redis.get(cacheKey);
-            if (cached) {
-                this.logger.debug(`Cache hit for results ${cacheKey}`);
-                cachedMetadata = JSON.parse(cached);
+        let cachedMetadata: { status: string; data: any[]; meta: { nextCursor: string | null } } | null = null;
+        if (request.status === ScanStatus.COMPLETED) {
+            try {
+                const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+                const cached = await this.redis.get(cacheKey);
+                if (cached) {
+                    this.logger.debug(`Cache hit for results ${cacheKey}`);
+                    cachedMetadata = JSON.parse(cached);
+                }
+            } catch (error) {
+                this.logger.warn(`Redis error, continuing without cache: ${error.message}`);
+                // Continue to DB fallback
             }
         }
 
@@ -187,7 +193,7 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             // Use cached metadata
             results = cachedMetadata.data;
             total = cachedMetadata.data.length; // Approximate, but cursor is cached
-            nextCursor = cachedMetadata.meta.next_cursor;
+            nextCursor = cachedMetadata.meta.nextCursor;
         } else {
             // Fetch from DB (for both completed and in-progress requests)
             // Use WHERE clause with originalIndex for efficient pagination (O(1) instead of O(n))
@@ -245,21 +251,26 @@ export class AppService implements OnModuleInit, OnModuleDestroy {
             status: request.status,
             data: hydratedResults,
             meta: {
-                next_cursor: nextCursor
+                nextCursor: nextCursor
             }
         };
 
         // 5. Save metadata to Cache (Only for completed requests, without HTML content, TTL: 1 Hour)
-        if (request.status === 'completed' && !cachedMetadata) {
-            const cacheKey = `results:${requestId}:${cursor}:${limit}`;
-            const metadataToCache = {
-                status: request.status,
-                data: results, // Only metadata, no HTML content
-                meta: {
-                    next_cursor: nextCursor
-                }
-            };
-            await this.redis.set(cacheKey, JSON.stringify(metadataToCache), 'EX', 3600);
+        if (request.status === ScanStatus.COMPLETED && !cachedMetadata) {
+            try {
+                const cacheKey = `results:${requestId}:${cursor}:${limit}`;
+                const metadataToCache = {
+                    status: request.status,
+                    data: results, // Only metadata, no HTML content
+                    meta: {
+                        nextCursor: nextCursor
+                    }
+                };
+                await this.redis.set(cacheKey, JSON.stringify(metadataToCache), 'EX', 3600);
+            } catch (error) {
+                this.logger.warn(`Redis error, failed to cache results: ${error.message}`);
+                // Continue without caching - data is already in DB
+            }
         }
 
         return response;

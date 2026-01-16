@@ -9,8 +9,8 @@ export class ApiKeyEntity {
     @Column()
     name: string;
 
-    @Column({ length: 8 })
-    truncatedKey: string; // Last 4 chars for display (e.g., "...abc123")
+    @Column({ length: 4, nullable: true })
+    truncatedKey: string; // Format: "...XXXX" where XXXX are the last 4 chars
 
     @Index()
     @Column({ unique: true })
